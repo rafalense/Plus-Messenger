@@ -1063,12 +1063,12 @@
   <string name="HeaderIconsColor">Цвет иконок заголовка</string>
   <string name="DividerColor">Цвет разделительной линии</string>
   <string name="AvatarRadius">Закругление аватара</string>
-  <string name="SetMemberColor">Установить цвет участника</string>
+  <string name="SetMemberColor">Разные цвета участников</string>
   <string name="ForwardNameColor">Цвет имени в пересылаемом сообщении</string>
   <string name="HeaderTitle">Название в заголовке</string>
   <string name="ForwardNoQuote">Копировать/Переслать</string>
   <string name="DisableMessageClick">Включить всплывающие окна</string>
-  <string name="ProfileScreen">Экрана профиля</string>
+  <string name="ProfileScreen">Экран профиля</string>
   <string name="HideBackground">Cкрыть фоновое изображение</string>
   <string name="RLinkColor">Цвет ссылки справа</string>
   <string name="LLinkColor">Цвет ссылки слева</string>
