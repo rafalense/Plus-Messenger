@@ -6,7 +6,7 @@
     <string name="LanguageCode">pl</string>
     <!--signin view-->
     <string name="YourPhone">Twój numer</string>
-    <string name="StartText">Proszę potwierdzić kodu kraju i podać swój numer telefonu</string>
+    <string name="StartText">Wpisz kierunkowy kraju i podaj swój numer telefonu</string>
     <string name="ChooseCountry">Wybierz kraj</string>
     <string name="WrongCountry">Nieprawidłowy numer kierunkowy kraju</string>
     <!--code enter view-->
@@ -649,7 +649,7 @@ Ekipa Telegram</string>
     <string name="ForwardMessagesToGroup">Przekazać wiadomości do %1$s?</string>
     <string name="FeatureUnavailable">Ta usługa nie jest aktualnie dostępna w Twoim kraju.</string>
   <string name="NoUsernameFound">Nie ma konta Telegram z tą nazwą użytkownika </string>
-  <string name="BotCantJoinGroups">Ten bot nie może dołączyć do grup.</string>
+  <string name="BotCantJoinGroups">Ten bot nie może dołączać do grup.</string>
     <!--Intro view-->
     <string name="Page1Title">Plus Messenger</string>
     <string name="Page2Title">Szybki</string>
@@ -657,15 +657,15 @@ Ekipa Telegram</string>
     <string name="Page4Title">Bezpieczny</string>
     <string name="Page5Title">Potężny</string>
     <string name="Page6Title">Oparty na chmurze</string>
-    <string name="Page7Title">Prywatny</string>
-    <string name="Page1Message">Najszybszy <![CDATA[<b>komunikator</b>]]> na świecie.<![CDATA[<br/>]]>To jest <![CDATA[<b>za darmo</b>]]> i <![CDATA[<b>bezpieczne</b>]]>.</string>
+    <string name="Page7Title">Chroni prywatność</string>
+    <string name="Page1Message">Najszybszy <![CDATA[<b>komunikator</b>]]> na świecie.<![CDATA[<br/>]]>Jest <![CDATA[<b>darmowy</b>]]> i <![CDATA[<b>bezpieczny</b>]]>.</string>
     <string name="Page2Message"><![CDATA[<b>Plus Messenger</b>]]> dostarcza wiadomości szybciej<![CDATA[<br/>]]>niż inne aplikacje</string>
-    <string name="Page3Message"><![CDATA[<b>Plus Messenger</b>]]> jest za damo na zawsze. Brak reklam. <![CDATA[<br/>]]> Brak subskrypcji.</string>
+    <string name="Page3Message"><![CDATA[<b>Plus Messenger</b>]]> zawsze będzie bezpłatny. Bez reklam. <![CDATA[<br/>]]> Bez subskrypcji.</string>
     <string name="Page4Message"><![CDATA[<b>Plus Messenger</b>]]> zabezpiecza twoje wiadomości<![CDATA[<br/>]]>przed atakami hakerów</string>
-    <string name="Page5Message"><![CDATA[<b>Plus Messenger</b>]]> nie ogranicza rozmiaru twoich<![CDATA[<br/>]]>mediów i czatów</string>
-    <string name="Page6Message"><![CDATA[<b>Plus Messenger</b>]]> miej dostęp do twoich wiadomości<![CDATA[<br/>]]>z wielu różnych urządzeń..</string>
+    <string name="Page5Message"><![CDATA[<b>Plus Messenger</b>]]> nie ogranicza rozmiaru Twoich<![CDATA[<br/>]]>plików ani liczby wiadomości</string>
+    <string name="Page6Message"><![CDATA[<b>Plus Messenger</b>]]> miej dostęp do Twoich wiadomości<![CDATA[<br/>]]>z wielu różnych urządzeń.</string>
     <string name="Page7Message"><![CDATA[<b>Plus Messenger</b>]]> zabezpiecza wiadomości na wysokim poziomie <![CDATA[<br/>]]>i mogą ulec samozniszczeniu.</string>
-    <string name="StartMessaging">Zacznij się komunikować</string>
+    <string name="StartMessaging">Rozpocznij</string>
     <!--plural-->
     <string name="Online_zero">%1$d Dostępny</string>
     <string name="Online_one">%1$d Dostępny</string>
