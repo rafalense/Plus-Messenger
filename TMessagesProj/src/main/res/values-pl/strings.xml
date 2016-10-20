@@ -60,7 +60,7 @@
   <string name="Hashtags">HASHTAGI</string>
   <string name="Recent">OSTATNIE</string>
   <!--channels-->
-    <string name="GroupType">Group Type</string>
+    <string name="GroupType">Typ Grupy</string>
     <string name="ChannelType">Channel Type</string>
     <string name="ChannelTypePublic">Public</string>
     <string name="ChannelTypePrivate">Private</string>
