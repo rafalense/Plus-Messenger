@@ -1,5 +1,7 @@
 ### Plus Messenger for Android
 
+**Checkout [Dev Branch](https://github.com/rafalense/Plus-Messenger/tree/dev)**
+
 This is an UNOFFICIAL app that uses [Telegram's API](https://core.telegram.org/api)
 
 It adds some extra features to the official Telegram app:
