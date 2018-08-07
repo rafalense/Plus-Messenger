@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.4.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
@@ -19,9 +19,10 @@ import android.graphics.Shader;
 import android.view.View;
 
 import org.telegram.messenger.FileLog;
-import org.telegram.ui.AnimationCompat.ViewProxy;
+import org.telegram.messenger.AnimationCompat.ViewProxy;
 
 public class ClippingImageView extends View {
+
     private int clipBottom;
     private int clipLeft;
     private int clipRight;
@@ -31,7 +32,6 @@ public class ClippingImageView extends View {
     private Paint paint;
     private Bitmap bmp;
     private Matrix matrix;
-    private onDrawListener drawListener;
 
     private boolean needRadius;
     private int radius;
@@ -41,9 +41,8 @@ public class ClippingImageView extends View {
     private RectF bitmapRect;
     private Matrix shaderMatrix;
 
-    public static interface onDrawListener {
-        public abstract void onDraw();
-    }
+    private float animationProgress;
+    private float animationValues[][];
 
     public ClippingImageView(Context context) {
         super(context);
@@ -52,6 +51,32 @@ public class ClippingImageView extends View {
         matrix = new Matrix();
         drawRect = new RectF();
         bitmapRect = new RectF();
+        roundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        roundRect = new RectF();
+        shaderMatrix = new Matrix();
+    }
+
+    public void setAnimationValues(float[][] values) {
+        animationValues = values;
+    }
+
+    public float getAnimationProgress() {
+        return animationProgress;
+    }
+
+    public void setAnimationProgress(float progress) {
+        animationProgress = progress;
+
+        ViewProxy.setScaleX(this, animationValues[0][0] + (animationValues[1][0] - animationValues[0][0]) * animationProgress);
+        ViewProxy.setScaleY(this, animationValues[0][1] + (animationValues[1][1] - animationValues[0][1]) * animationProgress);
+        ViewProxy.setTranslationX(this, animationValues[0][2] + (animationValues[1][2] - animationValues[0][2]) * animationProgress);
+        ViewProxy.setTranslationY(this, animationValues[0][3] + (animationValues[1][3] - animationValues[0][3]) * animationProgress);
+        setClipHorizontal((int) (animationValues[0][4] + (animationValues[1][4] - animationValues[0][4]) * animationProgress));
+        setClipTop((int) (animationValues[0][5] + (animationValues[1][5] - animationValues[0][5]) * animationProgress));
+        setClipBottom((int) (animationValues[0][6] + (animationValues[1][6] - animationValues[0][6]) * animationProgress));
+        setRadius((int) (animationValues[0][7] + (animationValues[1][7] - animationValues[0][7]) * animationProgress));
+
+        invalidate();
     }
 
     public int getClipBottom() {
@@ -79,21 +104,40 @@ public class ClippingImageView extends View {
     }
 
     public void onDraw(Canvas canvas) {
-        if (getVisibility() == GONE || getVisibility() == INVISIBLE) {
+        if (getVisibility() != VISIBLE) {
             return;
         }
         if (bmp != null) {
             float scaleY = ViewProxy.getScaleY(this);
-            if (drawListener != null && scaleY != 1) {
-                drawListener.onDraw();
-            }
             canvas.save();
 
             if (needRadius) {
-                roundRect.set(0, 0, getWidth(), getHeight());
                 shaderMatrix.reset();
-                shaderMatrix.setRectToRect(bitmapRect, roundRect, Matrix.ScaleToFit.FILL);
+                roundRect.set(0, 0, getWidth(), getHeight());
+
+                int bitmapW;
+                int bitmapH;
+                if (orientation % 360 == 90 || orientation % 360 == 270) {
+                    bitmapW = bmp.getHeight();
+                    bitmapH = bmp.getWidth();
+                } else {
+                    bitmapW = bmp.getWidth();
+                    bitmapH = bmp.getHeight();
+                }
+                float scaleW = getWidth() != 0 ? bitmapW / getWidth() : 1.0f;
+                float scaleH = getHeight() != 0 ? bitmapH / getHeight() : 1.0f;
+                float scale = Math.min(scaleW, scaleH);
+                if (Math.abs(scaleW - scaleH) > 0.00001f) {
+                    int w = (int) Math.floor(getWidth() * scale);
+                    int h = (int) Math.floor(getHeight() * scale);
+                    bitmapRect.set((bitmapW - w) / 2, (bitmapH - h) / 2, w, h);
+                    shaderMatrix.setRectToRect(bitmapRect, roundRect, Matrix.ScaleToFit.START);
+                } else {
+                    bitmapRect.set(0, 0, bmp.getWidth(), bmp.getHeight());
+                    shaderMatrix.setRectToRect(bitmapRect, roundRect, Matrix.ScaleToFit.FILL);
+                }
                 bitmapShader.setLocalMatrix(shaderMatrix);
+                canvas.clipRect(clipLeft / scaleY, clipTop / scaleY, getWidth() - clipRight / scaleY, getHeight() - clipBottom / scaleY);
                 canvas.drawRoundRect(roundRect, radius, radius, roundPaint);
             } else {
                 if (orientation == 90 || orientation == 270) {
@@ -163,18 +207,11 @@ public class ClippingImageView extends View {
         if (bitmap != null) {
             bitmapRect.set(0, 0, bitmap.getWidth(), bitmap.getHeight());
             if (needRadius) {
-                roundRect = new RectF();
-                shaderMatrix = new Matrix();
                 bitmapShader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-                roundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 roundPaint.setShader(bitmapShader);
             }
         }
         invalidate();
-    }
-
-    public void setOnDrawListener(onDrawListener listener) {
-        drawListener = listener;
     }
 
     public void setNeedRadius(boolean value) {

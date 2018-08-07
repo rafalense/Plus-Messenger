@@ -1,15 +1,16 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.SurfaceTexture;
@@ -17,17 +18,17 @@ import android.media.MediaCodecInfo;
 import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import com.coremedia.iso.IsoFile;
@@ -40,16 +41,18 @@ import com.coremedia.iso.boxes.TrackHeaderBox;
 import com.googlecode.mp4parser.util.Matrix;
 import com.googlecode.mp4parser.util.Path;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
-import org.telegram.android.MediaController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MediaController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
-import org.telegram.messenger.Utilities;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.Theme;
+import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.VideoSeekBarView;
 import org.telegram.ui.Components.VideoTimelineView;
 
@@ -57,7 +60,7 @@ import java.io.File;
 import java.util.List;
 
 @TargetApi(16)
-public class VideoEditorActivity extends BaseFragment implements TextureView.SurfaceTextureListener {
+public class VideoEditorActivity extends BaseFragment implements TextureView.SurfaceTextureListener, NotificationCenter.NotificationCenterDelegate {
 
     private boolean created = false;
     private MediaPlayer videoPlayer = null;
@@ -87,6 +90,7 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
     private int resultWidth = 0;
     private int resultHeight = 0;
     private int bitrate = 0;
+    private int originalBitrate = 0;
     private float videoDuration = 0;
     private long startTime = 0;
     private long endTime = 0;
@@ -96,14 +100,18 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
     private long esimatedDuration = 0;
     private long originalSize = 0;
 
+    private SeekBar bar;
+    private int barValue;
+    //private long tBitrate = 0;
+
     public interface VideoEditorActivityDelegate {
-        public abstract void didFinishEditVideo(String videoPath, long startTime, long endTime, int resultWidth, int resultHeight, int rotationValue, int originalWidth, int originalHeight, int bitrate, long estimatedSize, long estimatedDuration);
+        void didFinishEditVideo(String videoPath, long startTime, long endTime, int resultWidth, int resultHeight, int rotationValue, int originalWidth, int originalHeight, int bitrate, long estimatedSize, long estimatedDuration);
     }
 
     private Runnable progressRunnable = new Runnable() {
         @Override
         public void run() {
-            boolean playerCheck = false;
+            boolean playerCheck;
 
             while (true) {
                 synchronized (sync) {
@@ -198,6 +206,7 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
             return false;
         }
 
+        NotificationCenter.getInstance().addObserver(this, NotificationCenter.closeChats);
         created = true;
 
         return super.onFragmentCreate();
@@ -217,194 +226,229 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
                 FileLog.e("tmessages", e);
             }
         }
+        NotificationCenter.getInstance().removeObserver(this, NotificationCenter.closeChats);
         super.onFragmentDestroy();
     }
 
     @Override
-    public View createView(LayoutInflater inflater) {
-        if (fragmentView == null) {
-            actionBar.setBackgroundColor(0xff333333);
-            actionBar.setItemsBackground(R.drawable.bar_selector_white);
-            actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-            actionBar.setTitle(LocaleController.getString("EditVideo", R.string.EditVideo));
-            actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
-                @Override
-                public void onItemClick(int id) {
-                    if (id == -1) {
-                        finishFragment();
-                    } else if (id == 1) {
-                        synchronized (sync) {
-                            if (videoPlayer != null) {
-                                try {
-                                    videoPlayer.stop();
-                                    videoPlayer.release();
-                                    videoPlayer = null;
-                                } catch (Exception e) {
-                                    FileLog.e("tmessages", e);
-                                }
+    public View createView(Context context) {
+        actionBar.setBackgroundColor(Theme.ACTION_BAR_MEDIA_PICKER_COLOR);
+        actionBar.setItemsBackgroundColor(Theme.ACTION_BAR_PICKER_SELECTOR_COLOR);
+        actionBar.setBackButtonImage(R.drawable.ic_ab_back);
+        actionBar.setTitle(LocaleController.getString("EditVideo", R.string.EditVideo));
+        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
+            @Override
+            public void onItemClick(int id) {
+                if (id == -1) {
+                    finishFragment();
+                } else if (id == 1) {
+                    synchronized (sync) {
+                        if (videoPlayer != null) {
+                            try {
+                                videoPlayer.stop();
+                                videoPlayer.release();
+                                videoPlayer = null;
+                            } catch (Exception e) {
+                                FileLog.e("tmessages", e);
                             }
                         }
-                        if (delegate != null) {
-                            if (compressVideo.getVisibility() == View.GONE || compressVideo.getVisibility() == View.VISIBLE && !compressVideo.isChecked()) {
-                                delegate.didFinishEditVideo(videoPath, startTime, endTime, originalWidth, originalHeight, rotationValue, originalWidth, originalHeight, bitrate, estimatedSize, esimatedDuration);
-                            } else {
-                                delegate.didFinishEditVideo(videoPath, startTime, endTime, resultWidth, resultHeight, rotationValue, originalWidth, originalHeight, bitrate, estimatedSize, esimatedDuration);
-                            }
-                        }
-                        finishFragment();
                     }
+                    if (delegate != null) {
+                        if (compressVideo.getVisibility() == View.GONE || compressVideo.getVisibility() == View.VISIBLE && !compressVideo.isChecked()) {
+                            delegate.didFinishEditVideo(videoPath, startTime, endTime, originalWidth, originalHeight, rotationValue, originalWidth, originalHeight, originalBitrate, estimatedSize, esimatedDuration);
+                        } else {
+                            delegate.didFinishEditVideo(videoPath, startTime, endTime, resultWidth, resultHeight, rotationValue, originalWidth, originalHeight, bitrate, estimatedSize, esimatedDuration);
+                        }
+                    }
+                    finishFragment();
                 }
-            });
+            }
+        });
 
-            ActionBarMenu menu = actionBar.createMenu();
-            menu.addItemWithWidth(1, R.drawable.ic_done, AndroidUtilities.dp(56));
+        ActionBarMenu menu = actionBar.createMenu();
+        menu.addItemWithWidth(1, R.drawable.ic_done, AndroidUtilities.dp(56));
 
-            fragmentView = inflater.inflate(R.layout.video_editor_layout, null, false);
-            originalSizeTextView = (TextView) fragmentView.findViewById(R.id.original_size);
-            editedSizeTextView = (TextView) fragmentView.findViewById(R.id.edited_size);
-            videoContainerView = fragmentView.findViewById(R.id.video_container);
-            textContainerView = fragmentView.findViewById(R.id.info_container);
-            controlView = fragmentView.findViewById(R.id.control_layout);
-            compressVideo = (CheckBox) fragmentView.findViewById(R.id.compress_video);
-            compressVideo.setText(LocaleController.getString("CompressVideo", R.string.CompressVideo));
-            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-            compressVideo.setVisibility(originalHeight != resultHeight || originalWidth != resultWidth ? View.VISIBLE : View.GONE);
-            compressVideo.setChecked(preferences.getBoolean("compress_video", true));
-            compressVideo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = preferences.edit();
-                    editor.putBoolean("compress_video", isChecked);
-                    editor.commit();
-                    updateVideoEditedInfo();
-                }
-            });
+        fragmentView = getParentActivity().getLayoutInflater().inflate(R.layout.video_editor_layout, null, false);
+        originalSizeTextView = (TextView) fragmentView.findViewById(R.id.original_size);
+        editedSizeTextView = (TextView) fragmentView.findViewById(R.id.edited_size);
+        videoContainerView = fragmentView.findViewById(R.id.video_container);
+        textContainerView = fragmentView.findViewById(R.id.info_container);
+        controlView = fragmentView.findViewById(R.id.control_layout);
+        compressVideo = (CheckBox) fragmentView.findViewById(R.id.compress_video);
+        compressVideo.setText(LocaleController.getString("CompressVideo", R.string.CompressVideo));
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+        compressVideo.setVisibility(originalHeight != resultHeight || originalWidth != resultWidth ? View.VISIBLE : View.GONE);
+        compressVideo.setChecked(preferences.getBoolean("compress_video", true));
+        compressVideo.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putBoolean("compress_video", isChecked);
+                editor.commit();
+                updateVideoEditedInfo();
+            }
+        });
 
-            if (Build.VERSION.SDK_INT < 18) {
-                try {
-                    MediaCodecInfo codecInfo = MediaController.selectCodec(MediaController.MIME_TYPE);
-                    if (codecInfo == null) {
+        if (Build.VERSION.SDK_INT < 18) {
+            try {
+                MediaCodecInfo codecInfo = MediaController.selectCodec(MediaController.MIME_TYPE);
+                if (codecInfo == null) {
+                    compressVideo.setVisibility(View.GONE);
+                } else {
+                    String name = codecInfo.getName();
+                    if (name.equals("OMX.google.h264.encoder") ||
+                            name.equals("OMX.ST.VFM.H264Enc") ||
+                            name.equals("OMX.Exynos.avc.enc") ||
+                            name.equals("OMX.MARVELL.VIDEO.HW.CODA7542ENCODER") ||
+                            name.equals("OMX.MARVELL.VIDEO.H264ENCODER") ||
+                            name.equals("OMX.k3.video.encoder.avc") || //fix this later
+                            name.equals("OMX.TI.DUCATI1.VIDEO.H264E")) { //fix this later
                         compressVideo.setVisibility(View.GONE);
                     } else {
-                        String name = codecInfo.getName();
-                        if (name.equals("OMX.google.h264.encoder") ||
-                                name.equals("OMX.ST.VFM.H264Enc") ||
-                                name.equals("OMX.Exynos.avc.enc") ||
-                                name.equals("OMX.MARVELL.VIDEO.HW.CODA7542ENCODER") ||
-                                name.equals("OMX.MARVELL.VIDEO.H264ENCODER") ||
-                                name.equals("OMX.k3.video.encoder.avc") || //fix this later
-                                name.equals("OMX.TI.DUCATI1.VIDEO.H264E")) { //fix this later
+                        if (MediaController.selectColorFormat(codecInfo, MediaController.MIME_TYPE) == 0) {
                             compressVideo.setVisibility(View.GONE);
-                        } else {
-                            if (MediaController.selectColorFormat(codecInfo, MediaController.MIME_TYPE) == 0) {
-                                compressVideo.setVisibility(View.GONE);
-                            }
                         }
                     }
-                } catch (Exception e) {
-                    compressVideo.setVisibility(View.GONE);
-                    FileLog.e("tmessages", e);
                 }
-            }
-
-            TextView titleTextView = (TextView) fragmentView.findViewById(R.id.original_title);
-            titleTextView.setText(LocaleController.getString("OriginalVideo", R.string.OriginalVideo));
-            titleTextView = (TextView) fragmentView.findViewById(R.id.edited_title);
-            titleTextView.setText(LocaleController.getString("EditedVideo", R.string.EditedVideo));
-
-            videoTimelineView = (VideoTimelineView) fragmentView.findViewById(R.id.video_timeline_view);
-            videoTimelineView.setVideoPath(videoPath);
-            videoTimelineView.setDelegate(new VideoTimelineView.VideoTimelineViewDelegate() {
-                @Override
-                public void onLeftProgressChanged(float progress) {
-                    if (videoPlayer == null || !playerPrepared) {
-                        return;
-                    }
-                    try {
-                        if (videoPlayer.isPlaying()) {
-                            videoPlayer.pause();
-                            playButton.setImageResource(R.drawable.video_play);
-                        }
-                        videoPlayer.setOnSeekCompleteListener(null);
-                        videoPlayer.seekTo((int) (videoDuration * progress));
-                    } catch (Exception e) {
-                        FileLog.e("tmessages", e);
-                    }
-                    needSeek = true;
-                    videoSeekBarView.setProgress(videoTimelineView.getLeftProgress());
-                    updateVideoEditedInfo();
-                }
-
-                @Override
-                public void onRifhtProgressChanged(float progress) {
-                    if (videoPlayer == null || !playerPrepared) {
-                        return;
-                    }
-                    try {
-                        if (videoPlayer.isPlaying()) {
-                            videoPlayer.pause();
-                            playButton.setImageResource(R.drawable.video_play);
-                        }
-                        videoPlayer.setOnSeekCompleteListener(null);
-                        videoPlayer.seekTo((int) (videoDuration * progress));
-                    } catch (Exception e) {
-                        FileLog.e("tmessages", e);
-                    }
-                    needSeek = true;
-                    videoSeekBarView.setProgress(videoTimelineView.getLeftProgress());
-                    updateVideoEditedInfo();
-                }
-            });
-
-            videoSeekBarView = (VideoSeekBarView) fragmentView.findViewById(R.id.video_seekbar);
-            videoSeekBarView.delegate = new VideoSeekBarView.SeekBarDelegate() {
-                @Override
-                public void onSeekBarDrag(float progress) {
-                    if (progress < videoTimelineView.getLeftProgress()) {
-                        progress = videoTimelineView.getLeftProgress();
-                        videoSeekBarView.setProgress(progress);
-                    } else if (progress > videoTimelineView.getRightProgress()) {
-                        progress = videoTimelineView.getRightProgress();
-                        videoSeekBarView.setProgress(progress);
-                    }
-                    if (videoPlayer == null || !playerPrepared) {
-                        return;
-                    }
-                    if (videoPlayer.isPlaying()) {
-                        try {
-                            videoPlayer.seekTo((int) (videoDuration * progress));
-                            lastProgress = progress;
-                        } catch (Exception e) {
-                            FileLog.e("tmessages", e);
-                        }
-                    } else {
-                        lastProgress = progress;
-                        needSeek = true;
-                    }
-                }
-            };
-
-            playButton = (ImageView) fragmentView.findViewById(R.id.play_button);
-            playButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    play();
-                }
-            });
-
-            textureView = (TextureView) fragmentView.findViewById(R.id.video_view);
-            textureView.setSurfaceTextureListener(this);
-
-            updateVideoOriginalInfo();
-            updateVideoEditedInfo();
-        } else {
-            ViewGroup parent = (ViewGroup) fragmentView.getParent();
-            if (parent != null) {
-                parent.removeView(fragmentView);
+            } catch (Exception e) {
+                compressVideo.setVisibility(View.GONE);
+                FileLog.e("tmessages", e);
             }
         }
+
+        TextView titleTextView = (TextView) fragmentView.findViewById(R.id.original_title);
+        titleTextView.setText(LocaleController.getString("OriginalVideo", R.string.OriginalVideo));
+        titleTextView = (TextView) fragmentView.findViewById(R.id.edited_title);
+        titleTextView.setText(LocaleController.getString("EditedVideo", R.string.EditedVideo));
+
+        videoTimelineView = (VideoTimelineView) fragmentView.findViewById(R.id.video_timeline_view);
+        videoTimelineView.setVideoPath(videoPath);
+        videoTimelineView.setDelegate(new VideoTimelineView.VideoTimelineViewDelegate() {
+            @Override
+            public void onLeftProgressChanged(float progress) {
+                if (videoPlayer == null || !playerPrepared) {
+                    return;
+                }
+                try {
+                    if (videoPlayer.isPlaying()) {
+                        videoPlayer.pause();
+                        playButton.setImageResource(R.drawable.video_play);
+                    }
+                    videoPlayer.setOnSeekCompleteListener(null);
+                    videoPlayer.seekTo((int) (videoDuration * progress));
+                } catch (Exception e) {
+                    FileLog.e("tmessages", e);
+                }
+                needSeek = true;
+                videoSeekBarView.setProgress(videoTimelineView.getLeftProgress());
+                updateVideoEditedInfo();
+            }
+
+            @Override
+            public void onRifhtProgressChanged(float progress) {
+                if (videoPlayer == null || !playerPrepared) {
+                    return;
+                }
+                try {
+                    if (videoPlayer.isPlaying()) {
+                        videoPlayer.pause();
+                        playButton.setImageResource(R.drawable.video_play);
+                    }
+                    videoPlayer.setOnSeekCompleteListener(null);
+                    videoPlayer.seekTo((int) (videoDuration * progress));
+                } catch (Exception e) {
+                    FileLog.e("tmessages", e);
+                }
+                needSeek = true;
+                videoSeekBarView.setProgress(videoTimelineView.getLeftProgress());
+                updateVideoEditedInfo();
+            }
+        });
+
+        videoSeekBarView = (VideoSeekBarView) fragmentView.findViewById(R.id.video_seekbar);
+        videoSeekBarView.delegate = new VideoSeekBarView.SeekBarDelegate() {
+            @Override
+            public void onSeekBarDrag(float progress) {
+                if (progress < videoTimelineView.getLeftProgress()) {
+                    progress = videoTimelineView.getLeftProgress();
+                    videoSeekBarView.setProgress(progress);
+                } else if (progress > videoTimelineView.getRightProgress()) {
+                    progress = videoTimelineView.getRightProgress();
+                    videoSeekBarView.setProgress(progress);
+                }
+                if (videoPlayer == null || !playerPrepared) {
+                    return;
+                }
+                if (videoPlayer.isPlaying()) {
+                    try {
+                        videoPlayer.seekTo((int) (videoDuration * progress));
+                        lastProgress = progress;
+                    } catch (Exception e) {
+                        FileLog.e("tmessages", e);
+                    }
+                } else {
+                    lastProgress = progress;
+                    needSeek = true;
+                }
+            }
+        };
+
+        playButton = (ImageView) fragmentView.findViewById(R.id.play_button);
+        playButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                play();
+            }
+        });
+
+        textureView = (TextureView) fragmentView.findViewById(R.id.video_view);
+        textureView.setSurfaceTextureListener(this);
+
+        bar = (SeekBar)fragmentView.findViewById(R.id.seekBar);
+        final int step = 2;
+        int max = 20;
+        final int min = 2;
+        int progress = preferences.getInt("compress_video_scale", 2);
+        bar.setMax((max - min) / step);
+        bar.setProgress(progress);
+        barValue = min + (progress * step);
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                //Toast.makeText(getParentActivity(), seekBar.getProgress()+":"+String.valueOf(barValue), Toast.LENGTH_SHORT).show();
+                SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putInt("compress_video_scale", seekBar.getProgress());
+                editor.commit();
+                updateVideoEditedInfo();
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                // TODO Auto-generated method stub
+            }
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                barValue = min + (progress * step);
+
+            }
+        });
+        bar.setVisibility(compressVideo.getVisibility());
+
+        updateVideoOriginalInfo();
+        updateVideoEditedInfo();
+
         return fragmentView;
+    }
+
+    @Override
+    public void didReceivedNotification(int id, Object... args) {
+        if (id == NotificationCenter.closeChats) {
+            removeSelfFromStack();
+        }
     }
 
     private void setPlayerSurface() {
@@ -483,10 +527,10 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
         int width = rotationValue == 90 || rotationValue == 270 ? originalHeight : originalWidth;
         int height = rotationValue == 90 || rotationValue == 270 ? originalWidth : originalHeight;
         String videoDimension = String.format("%dx%d", width, height);
-        long duration = (long)Math.ceil(videoDuration);
-        int minutes = (int)(duration / 1000 / 60);
+        long duration = (long) Math.ceil(videoDuration);
+        int minutes = (int) (duration / 1000 / 60);
         int seconds = (int) Math.ceil(duration / 1000) - minutes * 60;
-        String videoTimeSize = String.format("%d:%02d, %s", minutes, seconds, Utilities.formatFileSize(originalSize));
+        String videoTimeSize = String.format("%d:%02d, %s", minutes, seconds, AndroidUtilities.formatFileSize(originalSize));
         originalSizeTextView.setText(String.format("%s, %s", videoDimension, videoTimeSize));
     }
 
@@ -494,19 +538,21 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
         if (editedSizeTextView == null) {
             return;
         }
-        esimatedDuration = (long)Math.ceil((videoTimelineView.getRightProgress() - videoTimelineView.getLeftProgress()) * videoDuration);
+        esimatedDuration = (long) Math.ceil((videoTimelineView.getRightProgress() - videoTimelineView.getLeftProgress()) * videoDuration);
 
-        int width = 0;
-        int height = 0;
+        int width;
+        int height;
+
+        calculate();
 
         if (compressVideo.getVisibility() == View.GONE || compressVideo.getVisibility() == View.VISIBLE && !compressVideo.isChecked()) {
             width = rotationValue == 90 || rotationValue == 270 ? originalHeight : originalWidth;
             height = rotationValue == 90 || rotationValue == 270 ? originalWidth : originalHeight;
-            estimatedSize = (int)(originalSize * ((float)esimatedDuration / videoDuration));
+            estimatedSize = (int) (originalSize * ((float) esimatedDuration / videoDuration));
         } else {
             width = rotationValue == 90 || rotationValue == 270 ? resultHeight : resultWidth;
             height = rotationValue == 90 || rotationValue == 270 ? resultWidth : resultHeight;
-            estimatedSize = calculateEstimatedSize((float)esimatedDuration / videoDuration);
+            estimatedSize = calculateEstimatedSize((float) esimatedDuration / videoDuration);
         }
 
         if (videoTimelineView.getLeftProgress() == 0) {
@@ -521,25 +567,31 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
         }
 
         String videoDimension = String.format("%dx%d", width, height);
-        int minutes = (int)(esimatedDuration / 1000 / 60);
+        int minutes = (int) (esimatedDuration / 1000 / 60);
         int seconds = (int) Math.ceil(esimatedDuration / 1000) - minutes * 60;
-        String videoTimeSize = String.format("%d:%02d, ~%s", minutes, seconds, Utilities.formatFileSize(estimatedSize));
+        String videoTimeSize = String.format("%d:%02d, ~%s", minutes, seconds, AndroidUtilities.formatFileSize(estimatedSize));
         editedSizeTextView.setText(String.format("%s, %s", videoDimension, videoTimeSize));
+        //
+        if(!compressVideo.isChecked()){
+            bar.setEnabled(false);
+        }else{
+            bar.setEnabled(true);
+        }
     }
 
     private void fixVideoSize() {
         if (fragmentView == null || getParentActivity() == null) {
             return;
         }
-        int viewHeight = 0;
+        int viewHeight;
         if (AndroidUtilities.isTablet()) {
             viewHeight = AndroidUtilities.dp(472);
         } else {
-            viewHeight = AndroidUtilities.displaySize.y - AndroidUtilities.statusBarHeight - AndroidUtilities.getCurrentActionBarHeight();
+            viewHeight = AndroidUtilities.displaySize.y - AndroidUtilities.statusBarHeight - ActionBar.getCurrentActionBarHeight();
         }
 
-        int width = 0;
-        int height = 0;
+        int width;
+        int height;
         if (AndroidUtilities.isTablet()) {
             width = AndroidUtilities.dp(490);
             height = viewHeight - AndroidUtilities.dp(276 + (compressVideo.getVisibility() == View.VISIBLE ? 20 : 0));
@@ -607,7 +659,7 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
             FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) videoContainerView.getLayoutParams();
             layoutParams.topMargin = AndroidUtilities.dp(16);
             layoutParams.bottomMargin = AndroidUtilities.dp(260 + (compressVideo.getVisibility() == View.VISIBLE ? 20 : 0));
-            layoutParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
+            layoutParams.width = LayoutHelper.MATCH_PARENT;
             layoutParams.leftMargin = 0;
             videoContainerView.setLayoutParams(layoutParams);
 
@@ -615,12 +667,12 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
             layoutParams.topMargin = 0;
             layoutParams.leftMargin = 0;
             layoutParams.bottomMargin = AndroidUtilities.dp(150 + (compressVideo.getVisibility() == View.VISIBLE ? 20 : 0));
-            layoutParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
+            layoutParams.width = LayoutHelper.MATCH_PARENT;
             layoutParams.gravity = Gravity.BOTTOM;
             controlView.setLayoutParams(layoutParams);
 
             layoutParams = (FrameLayout.LayoutParams) textContainerView.getLayoutParams();
-            layoutParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
+            layoutParams.width = LayoutHelper.MATCH_PARENT;
             layoutParams.leftMargin = AndroidUtilities.dp(16);
             layoutParams.rightMargin = AndroidUtilities.dp(16);
             layoutParams.bottomMargin = AndroidUtilities.dp(16);
@@ -721,7 +773,7 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
             }
 
             for (Box box : boxes) {
-                TrackBox trackBox = (TrackBox)box;
+                TrackBox trackBox = (TrackBox) box;
                 long sampleSizes = 0;
                 long trackBitrate = 0;
                 try {
@@ -731,15 +783,15 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
                     for (long size : sampleSizeBox.getSampleSizes()) {
                         sampleSizes += size;
                     }
-                    videoDuration = (float)mediaHeaderBox.getDuration() / (float)mediaHeaderBox.getTimescale();
-                    trackBitrate = (int)(sampleSizes * 8 / videoDuration);
+                    videoDuration = (float) mediaHeaderBox.getDuration() / (float) mediaHeaderBox.getTimescale();
+                    trackBitrate = (int) (sampleSizes * 8 / videoDuration);
                 } catch (Exception e) {
                     FileLog.e("tmessages", e);
                 }
                 TrackHeaderBox headerBox = trackBox.getTrackHeaderBox();
                 if (headerBox.getWidth() != 0 && headerBox.getHeight() != 0) {
                     trackHeaderBox = headerBox;
-                    bitrate = (int)(trackBitrate / 100000 * 100000);
+                    originalBitrate = bitrate = (int)(trackBitrate / 100000 * 100000);
                     if (bitrate > 900000) {
                         bitrate = 900000;
                     }
@@ -760,8 +812,8 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
             } else if (matrix.equals(Matrix.ROTATE_270)) {
                 rotationValue = 270;
             }
-            resultWidth = originalWidth = (int)trackHeaderBox.getWidth();
-            resultHeight = originalHeight = (int)trackHeaderBox.getHeight();
+            resultWidth = originalWidth = (int) trackHeaderBox.getWidth();
+            resultHeight = originalHeight = (int) trackHeaderBox.getHeight();
 
             if (resultWidth > 640 || resultHeight > 640) {
                 float scale = resultWidth > resultHeight ? 640.0f / resultWidth : 640.0f / resultHeight;
@@ -769,7 +821,7 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
                 resultHeight *= scale;
                 if (bitrate != 0) {
                     bitrate *= Math.max(0.5f, scale);
-                    videoFramesSize = (long)(bitrate / 8 * videoDuration);
+                    videoFramesSize = (long) (bitrate / 8 * videoDuration);
                 }
             }
 
@@ -789,8 +841,29 @@ public class VideoEditorActivity extends BaseFragment implements TextureView.Sur
         return true;
     }
 
+    private void calculate(){
+        resultWidth = originalWidth;
+        resultHeight = originalHeight;
+        bitrate = originalBitrate;
+
+        bitrate /= barValue;
+        int x = 2;
+        if(barValue > 4) {
+            if (originalWidth > 640 * x || originalHeight > 640 * x || barValue > 8) {
+                if(barValue > 14 || Math.max(originalWidth, originalHeight) <= 640*2)x = 1;
+                float scale = resultWidth > resultHeight ? 640.0f * x / resultWidth : 640.0f * x / resultHeight;
+                if (barValue > 6) resultWidth *= scale;
+                if (barValue > 6) resultHeight *= scale;
+                bitrate *= Math.max(0.5f, scale);
+            }
+        }
+        if (bitrate != 0){
+            videoFramesSize = (long) (bitrate / 8 * (videoDuration/1000));
+        }
+    }
+
     private int calculateEstimatedSize(float timeDelta) {
-        int size = (int)((audioFramesSize + videoFramesSize) * timeDelta);
+        int size = (int) ((audioFramesSize + videoFramesSize) * timeDelta);
         size += size / (32 * 1024) * 16;
         return size;
     }

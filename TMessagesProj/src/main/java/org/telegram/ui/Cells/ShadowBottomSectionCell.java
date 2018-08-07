@@ -1,44 +1,24 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Cells;
 
 import android.content.Context;
-import android.util.AttributeSet;
 import android.view.View;
 
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.R;
 
 public class ShadowBottomSectionCell extends View {
 
-    private void init() {
-        setBackgroundResource(R.drawable.greydivider_bottom);
-    }
-
     public ShadowBottomSectionCell(Context context) {
         super(context);
-        init();
-    }
-
-    public ShadowBottomSectionCell(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
-    }
-
-    public ShadowBottomSectionCell(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
-    }
-
-    public ShadowBottomSectionCell(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        init();
+        setBackgroundResource(R.drawable.greydivider_bottom);
     }
 
     @Override

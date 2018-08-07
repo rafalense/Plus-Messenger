@@ -3,26 +3,26 @@
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Adapters;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.TLRPC;
-import org.telegram.android.ContactsController;
-import org.telegram.android.MessagesController;
+import org.telegram.messenger.LocaleController;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
-import org.telegram.ui.AnimationCompat.ViewProxy;
+import org.telegram.messenger.AnimationCompat.ViewProxy;
 import org.telegram.ui.Cells.DividerCell;
 import org.telegram.ui.Cells.GreySectionCell;
 import org.telegram.ui.Cells.LetterSectionCell;
@@ -31,22 +31,23 @@ import org.telegram.ui.Cells.UserCell;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Locale;
 
 public class ContactsAdapter extends BaseSectionsAdapter {
 
     private Context mContext;
-    private boolean onlyUsers;
+    private int onlyUsers;
     private boolean needPhonebook;
     private HashMap<Integer, TLRPC.User> ignoreUsers;
     private HashMap<Integer, ?> checkedMap;
     private boolean scrolling;
+    private boolean isAdmin;
 
-    public ContactsAdapter(Context context, boolean arg1, boolean arg2, HashMap<Integer, TLRPC.User> arg3) {
+    public ContactsAdapter(Context context, int onlyUsersType, boolean arg2, HashMap<Integer, TLRPC.User> arg3, boolean arg4) {
         mContext = context;
-        onlyUsers = arg1;
+        onlyUsers = onlyUsersType;
         needPhonebook = arg2;
         ignoreUsers = arg3;
+        isAdmin = arg4;
     }
 
     public void setCheckedMap(HashMap<Integer, ?> map) {
@@ -59,9 +60,12 @@ public class ContactsAdapter extends BaseSectionsAdapter {
 
     @Override
     public Object getItem(int section, int position) {
-        if (onlyUsers) {
-            if (section < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section));
+        HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+
+        if (onlyUsers != 0 && !isAdmin) {
+            if (section < sortedUsersSectionsArray.size()) {
+                ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section));
                 if (position < arr.size()) {
                     return MessagesController.getInstance().getUser(arr.get(position).user_id);
                 }
@@ -71,8 +75,8 @@ public class ContactsAdapter extends BaseSectionsAdapter {
             if (section == 0) {
                 return null;
             } else {
-                if (section - 1 < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                    ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section - 1));
+                if (section - 1 < sortedUsersSectionsArray.size()) {
+                    ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section - 1));
                     if (position < arr.size()) {
                         return MessagesController.getInstance().getUser(arr.get(position).user_id);
                     }
@@ -88,12 +92,15 @@ public class ContactsAdapter extends BaseSectionsAdapter {
 
     @Override
     public boolean isRowEnabled(int section, int row) {
-        if (onlyUsers) {
-            ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section));
+        HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+
+        if (onlyUsers != 0 && !isAdmin) {
+            ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section));
             return row < arr.size();
         } else {
             if (section == 0) {
-                if (needPhonebook) {
+                if (needPhonebook || isAdmin) {
                     if (row == 1) {
                         return false;
                     }
@@ -103,8 +110,8 @@ public class ContactsAdapter extends BaseSectionsAdapter {
                     }
                 }
                 return true;
-            } else if (section - 1 < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section - 1));
+            } else if (section - 1 < sortedUsersSectionsArray.size()) {
+                ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section - 1));
                 return row < arr.size();
             }
         }
@@ -113,8 +120,12 @@ public class ContactsAdapter extends BaseSectionsAdapter {
 
     @Override
     public int getSectionCount() {
-        int count = ContactsController.getInstance().sortedUsersSectionsArray.size();
-        if (!onlyUsers) {
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+        int count = sortedUsersSectionsArray.size();
+        if (onlyUsers == 0) {
+            count++;
+        }
+        if (isAdmin) {
             count++;
         }
         if (needPhonebook) {
@@ -125,26 +136,29 @@ public class ContactsAdapter extends BaseSectionsAdapter {
 
     @Override
     public int getCountForSection(int section) {
-        if (onlyUsers) {
-            if (section < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section));
+        HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+
+        if (onlyUsers != 0 && !isAdmin) {
+            if (section < sortedUsersSectionsArray.size()) {
+                ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section));
                 int count = arr.size();
-                if (section != (ContactsController.getInstance().sortedUsersSectionsArray.size() - 1) || needPhonebook) {
+                if (section != (sortedUsersSectionsArray.size() - 1) || needPhonebook) {
                     count++;
                 }
                 return count;
             }
         } else {
             if (section == 0) {
-                if (needPhonebook) {
+                if (needPhonebook || isAdmin) {
                     return 2;
                 } else {
                     return 4;
                 }
-            } else if (section - 1 < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section - 1));
+            } else if (section - 1 < sortedUsersSectionsArray.size()) {
+                ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section - 1));
                 int count = arr.size();
-                if (section - 1 != (ContactsController.getInstance().sortedUsersSectionsArray.size() - 1) || needPhonebook) {
+                if (section - 1 != (sortedUsersSectionsArray.size() - 1) || needPhonebook) {
                     count++;
                 }
                 return count;
@@ -158,65 +172,83 @@ public class ContactsAdapter extends BaseSectionsAdapter {
 
     @Override
     public View getSectionHeaderView(int section, View convertView, ViewGroup parent) {
+        HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+
         if (convertView == null) {
             convertView = new LetterSectionCell(mContext);
         }
-        if (onlyUsers) {
-            if (section < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ((LetterSectionCell) convertView).setLetter(ContactsController.getInstance().sortedUsersSectionsArray.get(section));
+        if (onlyUsers != 0 && !isAdmin) {
+            if (section < sortedUsersSectionsArray.size()) {
+                ((LetterSectionCell) convertView).setLetter(sortedUsersSectionsArray.get(section));
             } else {
                 ((LetterSectionCell) convertView).setLetter("");
             }
         } else {
             if (section == 0) {
                 ((LetterSectionCell) convertView).setLetter("");
-            } else if (section - 1 < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ((LetterSectionCell) convertView).setLetter(ContactsController.getInstance().sortedUsersSectionsArray.get(section - 1));
+            } else if (section - 1 < sortedUsersSectionsArray.size()) {
+                ((LetterSectionCell) convertView).setLetter(sortedUsersSectionsArray.get(section - 1));
             } else {
                 ((LetterSectionCell) convertView).setLetter("");
             }
         }
+        ((LetterSectionCell) convertView).setLetterColor(AndroidUtilities.getIntDef("contactsNameColor", 0xff808080)); //Plus
         return convertView;
     }
 
     @Override
     public View getItemView(int section, int position, View convertView, ViewGroup parent) {
         int type = getItemViewType(section, position);
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int cColorGrey = themePrefs.getInt("contactsNameColor", 0xff737373);
+        int cColorBlack = themePrefs.getInt("contactsNameColor", 0xff000000);
+        int iconsColor = themePrefs.getInt("contactsIconsColor", 0xff737373);
+
         if (type == 4) {
             if (convertView == null) {
                 convertView = new DividerCell(mContext);
                 convertView.setPadding(AndroidUtilities.dp(LocaleController.isRTL ? 28 : 72), 0, AndroidUtilities.dp(LocaleController.isRTL ? 72 : 28), 0);
+                convertView.setTag("contactsRowColor"); //Plus
             }
+            updateViewColor(convertView);
         } else if (type == 3) {
             if (convertView == null) {
                 convertView = new GreySectionCell(mContext);
                 ((GreySectionCell) convertView).setText(LocaleController.getString("Contacts", R.string.Contacts).toUpperCase());
                 //((GreySectionCell) convertView).setText(String.format(Locale.US, " %d " + LocaleController.getString("Contacts", R.string.Contacts).toUpperCase(), arr0.size()));
-                ((GreySectionCell) convertView).setBackgroundColor(AndroidUtilities.getIntDef("contactsRowColor", 0xffffffff));
+                ((GreySectionCell) convertView).setBackgroundColor(themePrefs.getInt("contactsRowColor", 0xffffffff));
+                ((GreySectionCell) convertView).setTextColor(cColorGrey);
             }
+            updateViewColor(convertView);
         } else if (type == 2) {
             if (convertView == null) {
                 convertView = new TextCell(mContext);
             }
+            updateViewColor(convertView);
             TextCell actionCell = (TextCell) convertView;
-            actionCell.setTextColor(AndroidUtilities.getIntDef("contactsNameColor", 0xff000000));
+            actionCell.setTextColor(cColorBlack);
             if (needPhonebook) {
                 actionCell.setTextAndIcon(LocaleController.getString("InviteFriends", R.string.InviteFriends), R.drawable.menu_invite);
+            } else if (isAdmin) {
+                actionCell.setTextAndIcon(LocaleController.getString("InviteToGroupByLink", R.string.InviteToGroupByLink), R.drawable.menu_invite);
             } else {
                 if (position == 0) {
                     actionCell.setTextAndIcon(LocaleController.getString("NewGroup", R.string.NewGroup), R.drawable.menu_newgroup);
                 } else if (position == 1) {
                     actionCell.setTextAndIcon(LocaleController.getString("NewSecretChat", R.string.NewSecretChat), R.drawable.menu_secret);
                 } else if (position == 2) {
-                    actionCell.setTextAndIcon(LocaleController.getString("NewBroadcastList", R.string.NewBroadcastList), R.drawable.menu_broadcast);
+                    actionCell.setTextAndIcon(LocaleController.getString("NewChannel", R.string.NewChannel), R.drawable.menu_broadcast);
                 }
             }
+            actionCell.setIconColor(iconsColor);
         } else if (type == 1) {
             if (convertView == null) {
                 convertView = new TextCell(mContext);
-                ((TextCell) convertView).setTextColor(AndroidUtilities.getIntDef("contactsNameColor", 0xff000000));
-                ((TextCell) convertView).setTextSize(AndroidUtilities.getIntDef("contactsNameSize", 16));
+                ((TextCell) convertView).setTextColor(cColorBlack);
+                ((TextCell) convertView).setTextSize(themePrefs.getInt("contactsNameSize", 16));
             }
+            updateViewColor(convertView);
             ContactsController.Contact contact = ContactsController.getInstance().phoneBookContacts.get(position);
             if (contact.first_name != null && contact.last_name != null) {
                 ((TextCell) convertView).setText(contact.first_name + " " + contact.last_name);
@@ -227,15 +259,18 @@ public class ContactsAdapter extends BaseSectionsAdapter {
             }
         } else if (type == 0) {
             if (convertView == null) {
-                convertView = new UserCell(mContext, 58);
-                //((UserCell) convertView).setStatusColors(0xffa8a8a8, 0xff3b84c0);
-                ((UserCell) convertView).setStatusColors(AndroidUtilities.getIntDef("contactsStatusColor", 0xffa8a8a8), AndroidUtilities.getIntDef("contactsOnlineColor", AndroidUtilities.getIntDarkerColor("themeColor",0x15)));
-                ((UserCell) convertView).setNameColor(AndroidUtilities.getIntDef("contactsNameColor", 0xff000000));
+                convertView = new UserCell(mContext, 58, 1, false);
+                ((UserCell) convertView).setStatusColors(0xffa8a8a8, 0xff3b84c0);
+                convertView.setTag("Contacts");
             }
+            updateViewColor(convertView);
 
-            ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section - (onlyUsers ? 0 : 1)));
+            HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+            ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+
+            ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section - (onlyUsers != 0 && !isAdmin ? 0 : 1)));
             TLRPC.User user = MessagesController.getInstance().getUser(arr.get(position).user_id);
-            ((UserCell)convertView).setData(user, null, null, 0);
+            ((UserCell) convertView).setData(user, null, null, 0);
             if (checkedMap != null) {
                 ((UserCell) convertView).setChecked(checkedMap.containsKey(user.id), !scrolling  && Build.VERSION.SDK_INT > 10);
             }
@@ -247,18 +282,81 @@ public class ContactsAdapter extends BaseSectionsAdapter {
                 }
             }
         }
-        parent.setBackgroundColor(AndroidUtilities.getIntDef("contactsRowColor", 0xffffffff));
+        updateListBG(parent);
         return convertView;
+    }
+
+    private void updateListBG(ViewGroup vg){
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int mainColor = themePrefs.getInt("contactsRowColor", 0xffffffff);
+        int value = themePrefs.getInt("contactsRowGradient", 0);
+        boolean b = true;//themePrefs.getBoolean("contactsRowGradientListCheck", false);
+        if(value > 0 && b) {
+            GradientDrawable.Orientation go;
+            switch(value) {
+                case 2:
+                    go = GradientDrawable.Orientation.LEFT_RIGHT;
+                    break;
+                case 3:
+                    go = GradientDrawable.Orientation.TL_BR;
+                    break;
+                case 4:
+                    go = GradientDrawable.Orientation.BL_TR;
+                    break;
+                default:
+                    go = GradientDrawable.Orientation.TOP_BOTTOM;
+            }
+
+            int gradColor = themePrefs.getInt("contactsRowGradientColor", 0xffffffff);
+            int[] colors = new int[]{mainColor, gradColor};
+            GradientDrawable gd = new GradientDrawable(go, colors);
+            vg.setBackgroundDrawable(gd);
+        }else{
+            vg.setBackgroundColor(mainColor);
+        }
+    }
+
+    private void updateViewColor(View v){
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int mainColor = themePrefs.getInt("contactsRowColor", 0xffffffff);
+        int value = themePrefs.getInt("contactsRowGradient", 0);
+        boolean b = true;//themePrefs.getBoolean("contactsRowGradientListCheck", false);
+        if(value > 0 && !b) {
+            GradientDrawable.Orientation go;
+            switch(value) {
+                case 2:
+                    go = GradientDrawable.Orientation.LEFT_RIGHT;
+                    break;
+                case 3:
+                    go = GradientDrawable.Orientation.TL_BR;
+                    break;
+                case 4:
+                    go = GradientDrawable.Orientation.BL_TR;
+                    break;
+                default:
+                    go = GradientDrawable.Orientation.TOP_BOTTOM;
+            }
+
+            int gradColor = themePrefs.getInt("contactsRowGradientColor", 0xffffffff);
+            int[] colors = new int[]{mainColor, gradColor};
+            GradientDrawable gd = new GradientDrawable(go, colors);
+            v.setBackgroundDrawable(gd);
+        } else if(b){
+            v.setBackgroundColor(0x00000000);
+        }
+        if(value > 0)v.setTag("Contacts00");
     }
 
     @Override
     public int getItemViewType(int section, int position) {
-        if (onlyUsers) {
-            ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section));
+        HashMap<String, ArrayList<TLRPC.TL_contact>> usersSectionsDict = onlyUsers == 2 ? ContactsController.getInstance().usersMutualSectionsDict : ContactsController.getInstance().usersSectionsDict;
+        ArrayList<String> sortedUsersSectionsArray = onlyUsers == 2 ? ContactsController.getInstance().sortedUsersMutualSectionsArray : ContactsController.getInstance().sortedUsersSectionsArray;
+        if (onlyUsers != 0 && !isAdmin) {
+            ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section));
             return position < arr.size() ? 0 : 4;
         } else {
             if (section == 0) {
-                if (needPhonebook) {
+                if (needPhonebook || isAdmin) {
                     if (position == 1) {
                         return 3;
                     }
@@ -268,8 +366,8 @@ public class ContactsAdapter extends BaseSectionsAdapter {
                     }
                 }
                 return 2;
-            } else if (section - 1 < ContactsController.getInstance().sortedUsersSectionsArray.size()) {
-                ArrayList<TLRPC.TL_contact> arr = ContactsController.getInstance().usersSectionsDict.get(ContactsController.getInstance().sortedUsersSectionsArray.get(section - 1));
+            } else if (section - 1 < sortedUsersSectionsArray.size()) {
+                ArrayList<TLRPC.TL_contact> arr = usersSectionsDict.get(sortedUsersSectionsArray.get(section - 1));
                 return position < arr.size() ? 0 : 4;
             }
         }

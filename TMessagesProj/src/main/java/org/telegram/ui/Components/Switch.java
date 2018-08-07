@@ -17,6 +17,7 @@
 package org.telegram.ui.Components;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -30,10 +31,11 @@ import android.view.VelocityTracker;
 import android.view.ViewConfiguration;
 import android.widget.CompoundButton;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
-import org.telegram.ui.AnimationCompat.ObjectAnimatorProxy;
+import org.telegram.messenger.AnimationCompat.ObjectAnimatorProxy;
 
 public class Switch extends CompoundButton {
 
@@ -391,6 +393,7 @@ public class Switch extends CompoundButton {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         attachedToWindow = true;
+        requestLayout();
     }
 
     @Override
@@ -416,14 +419,36 @@ public class Switch extends CompoundButton {
             cancelPositionAnimator();
             setThumbPosition(checked ? 1 : 0);
         }
-
+        if(getTag() == null){
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int defColor = preferences.getInt("themeColor", AndroidUtilities.defColor);
+        int sColor = preferences.getInt("prefSectionColor", defColor);
+        int sDarkColor = AndroidUtilities.getIntAlphaColor("prefSectionColor", sColor, 0.5f);
+        int darkColor = AndroidUtilities.getIntAlphaColor("themeColor", AndroidUtilities.defColor, 0.5f);
+        int checkColor = sColor == defColor ? darkColor : sDarkColor;
         if (mTrackDrawable != null) {
             //mTrackDrawable.setColorFilter(new PorterDuffColorFilter(checked ? 0xffa0d6fa : 0xffc7c7c7, PorterDuff.Mode.MULTIPLY));
-            mTrackDrawable.setColorFilter(new PorterDuffColorFilter(checked ? AndroidUtilities.getIntAlphaColor("themeColor",0.5f) : 0xffc7c7c7, PorterDuff.Mode.MULTIPLY));
+            mTrackDrawable.setColorFilter(new PorterDuffColorFilter(checked ? checkColor : 0xffc7c7c7, PorterDuff.Mode.MULTIPLY));
         }
         if (mThumbDrawable != null) {
             //mThumbDrawable.setColorFilter(new PorterDuffColorFilter(checked ? 0xff45abef : 0xffededed, PorterDuff.Mode.MULTIPLY));
-            mThumbDrawable.setColorFilter(new PorterDuffColorFilter(checked ? AndroidUtilities.getIntColor("themeColor") : 0xffededed, PorterDuff.Mode.MULTIPLY));
+            mThumbDrawable.setColorFilter(new PorterDuffColorFilter(checked ? sColor : 0xffededed, PorterDuff.Mode.MULTIPLY));
+        }
+        }
+    }
+
+    public void setColor(int color){
+        boolean checked = isChecked();
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int defColor = preferences.getInt("themeColor", AndroidUtilities.defColor);
+        int darkColor = AndroidUtilities.getIntAlphaColor("themeColor", AndroidUtilities.defColor, 0.5f);
+        int sDarkColor = AndroidUtilities.setDarkColor(color, 0x7f);
+        int checkColor = color == defColor ? darkColor : sDarkColor;
+        if (mTrackDrawable != null) {
+            mTrackDrawable.setColorFilter(new PorterDuffColorFilter(checked ? color : 0xffc7c7c7, PorterDuff.Mode.MULTIPLY));
+        }
+        if (mThumbDrawable != null) {
+            mThumbDrawable.setColorFilter(new PorterDuffColorFilter(checked ? checkColor : 0xffededed, PorterDuff.Mode.MULTIPLY));
         }
     }
 
@@ -557,8 +582,6 @@ public class Switch extends CompoundButton {
 
         final int switchTop = mSwitchTop;
         final int switchBottom = mSwitchBottom;
-        final int switchInnerTop = switchTop + padding.top;
-        final int switchInnerBottom = switchBottom - padding.bottom;
 
         final Drawable thumbDrawable = mThumbDrawable;
         if (trackDrawable != null) {

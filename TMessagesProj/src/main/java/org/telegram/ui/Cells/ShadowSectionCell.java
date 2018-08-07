@@ -1,48 +1,59 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Cells;
 
 import android.content.Context;
-import android.util.AttributeSet;
+import android.content.SharedPreferences;
 import android.view.View;
 
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
 
 public class ShadowSectionCell extends View {
 
-    private void init() {
-        setBackgroundResource(R.drawable.greydivider);
-    }
+    private int size = 12;
 
+    boolean bTheme;
     public ShadowSectionCell(Context context) {
         super(context);
-        init();
+        setBackgroundResource(R.drawable.greydivider);
+        bTheme = true;
     }
 
-    public ShadowSectionCell(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
+    public void setSize(int value) {
+        size = value;
+
+
+
     }
 
-    public ShadowSectionCell(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
-    }
-
-    public ShadowSectionCell(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        init();
+    public ShadowSectionCell(Context context, boolean theme) {
+        super(context);
+        setBackgroundResource(R.drawable.greydivider);
+        bTheme = theme;
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(12), MeasureSpec.EXACTLY));
+        super.onMeasure(MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(size), MeasureSpec.EXACTLY));
+        if(bTheme)setTheme();
     }
+
+    private void setTheme(){
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int shadowColor = preferences.getInt("prefShadowColor", 0xfff0f0f0);
+        if(shadowColor == 0xfff0f0f0) {
+            setBackgroundResource(R.drawable.greydivider);
+        } else {
+            setBackgroundColor(shadowColor);
+        }
+    }
+
 }

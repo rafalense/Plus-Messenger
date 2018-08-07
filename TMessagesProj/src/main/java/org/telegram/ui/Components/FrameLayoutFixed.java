@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.3.2.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
@@ -14,12 +14,14 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 
 import java.util.ArrayList;
 
 public class FrameLayoutFixed extends FrameLayout {
-    private final ArrayList<View> mMatchParentChildren = new ArrayList<View>(1);
+
+    private final ArrayList<View> mMatchParentChildren = new ArrayList<>(1);
 
     public FrameLayoutFixed(Context context) {
         super(context);
@@ -86,8 +88,8 @@ public class FrameLayoutFixed extends FrameLayout {
                             child.getMeasuredHeight() + lp.topMargin + lp.bottomMargin);
                     childState |= getMeasuredStateFixed(child);
                     if (measureMatchParentChildren) {
-                        if (lp.width == LayoutParams.MATCH_PARENT ||
-                                lp.height == LayoutParams.MATCH_PARENT) {
+                        if (lp.width == LayoutHelper.MATCH_PARENT ||
+                                lp.height == LayoutHelper.MATCH_PARENT) {
                             mMatchParentChildren.add(child);
                         }
                     }
@@ -110,7 +112,7 @@ public class FrameLayoutFixed extends FrameLayout {
             }
 
             setMeasuredDimension(resolveSizeAndStateFixed(maxWidth, widthMeasureSpec, childState),
-                    resolveSizeAndStateFixed(maxHeight, heightMeasureSpec, childState << MEASURED_HEIGHT_STATE_SHIFT));
+                    resolveSizeAndStateFixed(maxHeight, heightMeasureSpec, childState << 16));
 
             count = mMatchParentChildren.size();
             if (count > 1) {
@@ -121,7 +123,7 @@ public class FrameLayoutFixed extends FrameLayout {
                     int childWidthMeasureSpec;
                     int childHeightMeasureSpec;
 
-                    if (lp.width == LayoutParams.MATCH_PARENT) {
+                    if (lp.width == LayoutHelper.MATCH_PARENT) {
                         childWidthMeasureSpec = MeasureSpec.makeMeasureSpec(getMeasuredWidth() -
                                 getPaddingLeft() - getPaddingRight() -
                                 lp.leftMargin - lp.rightMargin,
@@ -133,7 +135,7 @@ public class FrameLayoutFixed extends FrameLayout {
                                 lp.width);
                     }
 
-                    if (lp.height == LayoutParams.MATCH_PARENT) {
+                    if (lp.height == LayoutHelper.MATCH_PARENT) {
                         childHeightMeasureSpec = MeasureSpec.makeMeasureSpec(getMeasuredHeight() -
                                 getPaddingTop() - getPaddingBottom() -
                                 lp.topMargin - lp.bottomMargin,
@@ -150,7 +152,12 @@ public class FrameLayoutFixed extends FrameLayout {
             }
         } catch (Exception e) {
             FileLog.e("tmessages", e);
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            try {
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            } catch (Exception e2) {
+                FileLog.e("tmessages", e2);
+                setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(10), MeasureSpec.EXACTLY));
+            }
         }
     }
 }

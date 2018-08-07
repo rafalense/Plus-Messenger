@@ -1,13 +1,14 @@
 /*
- * This is the source code of Telegram for Android v. 2.x
+ * This is the source code of Telegram for Android v. 3.x.x
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2015.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Application;
 import android.os.Build;
@@ -17,11 +18,12 @@ import org.telegram.messenger.FileLog;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
+@SuppressLint("NewApi")
 public class ForegroundDetector implements Application.ActivityLifecycleCallbacks {
 
     public interface Listener {
-        public void onBecameForeground();
-        public void onBecameBackground();
+        void onBecameForeground();
+        void onBecameBackground();
     }
 
     private int refs;

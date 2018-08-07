@@ -1,24 +1,15 @@
-### Telegram+ for Android
+### Zap
 
-This is an UNOFFICIAL app that uses [Telegram's API](https://core.telegram.org/api)
+Antes do primeiro build LEIA ESSAS INSTRUÇÕES:
 
-It adds some extra features to the official Telegram app:
+a) Abra o arquivo org.telegram.messenger.BuildVars.java e preencha as credenciais que devem ser geradas no liks que estão nos comentários do mesmo
 
-**THEMING:**
-Change colors and sizes of many objects as texts, icons, headers... and create your own theme.
-Save your theme and share it easily with your friends.
-Apply themes shared by other users
+b) no https://firebase.google.com/ (um dos links do passo anterior) é gerado o arquivo google-services.json, ele deve ser salvo dentro da pasta /TMessagesProj do projeto
 
-**MEDIA:** Audio files can be shared easily from Chat Screen
+c) Altero as ultimas linhas do values/strings.xml de acordo com o seu app (nome do app mensagem de boas vindas e etc...)
 
-**PRIVACY:** Mobile number can be hidden from Menu Drawer and Settings menu
+d) Substitua os arquivos ic_launcher.png nas pastas  /drawble pelo arquivo de seu app
 
-**SOCIAL:** Get in touch with other Telegram+ users trough [our Google+ community](https://plus.google.com/communities/106927015963860485525)
+e) Altere o build.grade de acordo com o reverse name do seu app (IMPORTANTE: é o mesmo reverse name que está no arquivo google-services.json
 
-This repo contains the source code for [Telegram+ App for Android](https://play.google.com/store/apps/details?id=org.telegram.plus).
-
-### USAGE
-**Beware of using the dev branch and uploading it to any markets, in many cases it not will work as expected**.
-
-First of all, take a look at **src/main/java/org/telegram/messenger/BuildVars.java** and fill it with correct values.
-Import the root folder into your IDE (tested on Android Studio), then run project.
+f) Gere sua chave de release e salve-a na pasta _signAPK como "release.keystore" e altere as credenciais de acordo no build.grande em "signingConfigs"

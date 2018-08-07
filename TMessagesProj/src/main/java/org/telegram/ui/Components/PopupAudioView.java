@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.4.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
@@ -17,12 +17,15 @@ import android.text.TextPaint;
 import android.view.MotionEvent;
 import android.view.SoundEffectConstants;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.ImageLoader;
-import org.telegram.android.MediaController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ImageLoader;
+import org.telegram.messenger.MediaController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.R;
-import org.telegram.android.MessageObject;
+import org.telegram.messenger.MessageObject;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.BaseCell;
 
 import java.io.File;
@@ -58,23 +61,23 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
         super(context);
         if (backgroundMediaDrawableIn == null) {
             backgroundMediaDrawableIn = getResources().getDrawable(R.drawable.msg_in_photo);
-            statesDrawable[0][0] = getResources().getDrawable(R.drawable.play1);
-            statesDrawable[0][1] = getResources().getDrawable(R.drawable.play1_pressed);
-            statesDrawable[1][0] = getResources().getDrawable(R.drawable.pause1);
-            statesDrawable[1][1] = getResources().getDrawable(R.drawable.pause1_pressed);
-            statesDrawable[2][0] = getResources().getDrawable(R.drawable.audioload1);
-            statesDrawable[2][1] = getResources().getDrawable(R.drawable.audioload1_pressed);
-            statesDrawable[3][0] = getResources().getDrawable(R.drawable.audiocancel1);
-            statesDrawable[3][1] = getResources().getDrawable(R.drawable.audiocancel1_pressed);
+            statesDrawable[0][0] = getResources().getDrawable(R.drawable.play_g);
+            statesDrawable[0][1] = getResources().getDrawable(R.drawable.play_g_s);
+            statesDrawable[1][0] = getResources().getDrawable(R.drawable.pause_g);
+            statesDrawable[1][1] = getResources().getDrawable(R.drawable.pause_g_s);
+            statesDrawable[2][0] = getResources().getDrawable(R.drawable.file_g_load);
+            statesDrawable[2][1] = getResources().getDrawable(R.drawable.file_g_load_s);
+            statesDrawable[3][0] = getResources().getDrawable(R.drawable.file_g_cancel);
+            statesDrawable[3][1] = getResources().getDrawable(R.drawable.file_g_cancel_s);
 
-            statesDrawable[4][0] = getResources().getDrawable(R.drawable.play2);
-            statesDrawable[4][1] = getResources().getDrawable(R.drawable.play2_pressed);
-            statesDrawable[5][0] = getResources().getDrawable(R.drawable.pause2);
-            statesDrawable[5][1] = getResources().getDrawable(R.drawable.pause2_pressed);
-            statesDrawable[6][0] = getResources().getDrawable(R.drawable.audioload2);
-            statesDrawable[6][1] = getResources().getDrawable(R.drawable.audioload2_pressed);
-            statesDrawable[7][0] = getResources().getDrawable(R.drawable.audiocancel2);
-            statesDrawable[7][1] = getResources().getDrawable(R.drawable.audiocancel2_pressed);
+            statesDrawable[4][0] = getResources().getDrawable(R.drawable.play_b);
+            statesDrawable[4][1] = getResources().getDrawable(R.drawable.play_b_s);
+            statesDrawable[5][0] = getResources().getDrawable(R.drawable.pause_b);
+            statesDrawable[5][1] = getResources().getDrawable(R.drawable.pause_b_s);
+            statesDrawable[6][0] = getResources().getDrawable(R.drawable.file_b_load);
+            statesDrawable[6][1] = getResources().getDrawable(R.drawable.file_b_load_s);
+            statesDrawable[7][0] = getResources().getDrawable(R.drawable.file_b_cancel);
+            statesDrawable[7][1] = getResources().getDrawable(R.drawable.file_b_cancel_s);
 
             timePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
             timePaint.setTextSize(AndroidUtilities.dp(16));
@@ -83,18 +86,13 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
         TAG = MediaController.getInstance().generateObserverTag();
 
         seekBar = new SeekBar(getContext());
-        seekBar.delegate = this;
+        seekBar.setDelegate(this);
         progressView = new ProgressView();
     }
 
     public void setMessageObject(MessageObject messageObject) {
         if (currentMessageObject != messageObject) {
-            int uid = messageObject.messageOwner.media.audio.user_id;
-            if (uid == 0) {
-                uid = messageObject.messageOwner.from_id;
-            }
-
-            seekBar.type = 1;
+            seekBar.setColors(Theme.MSG_IN_AUDIO_SEEKBAR_COLOR, Theme.MSG_IN_AUDIO_SEEKBAR_FILL_COLOR, Theme.MSG_IN_AUDIO_SEEKBAR_SELECTED_COLOR);
             progressView.setProgressColors(0xffd9e2eb, 0xff86c5f8);
 
             currentMessageObject = messageObject;
@@ -122,13 +120,12 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
             return;
         }
 
-        seekBarX = AndroidUtilities.dp(40);
+        seekBarX = AndroidUtilities.dp(54);
         buttonX = AndroidUtilities.dp(10);
         timeX = getMeasuredWidth() - timeWidth - AndroidUtilities.dp(16);
 
-        seekBar.width = getMeasuredWidth() - AndroidUtilities.dp(56) - timeWidth;
-        seekBar.height = AndroidUtilities.dp(30);
-        progressView.width = getMeasuredWidth() - AndroidUtilities.dp(80) - timeWidth;
+        seekBar.setSize(getMeasuredWidth() - AndroidUtilities.dp(70) - timeWidth, AndroidUtilities.dp(30));
+        progressView.width = getMeasuredWidth() - AndroidUtilities.dp(94) - timeWidth;
         progressView.height = AndroidUtilities.dp(30);
         seekBarY = AndroidUtilities.dp(13);
         buttonY = AndroidUtilities.dp(10);
@@ -234,6 +231,12 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
     private void didPressedButton() {
         if (buttonState == 0) {
             boolean result = MediaController.getInstance().playAudio(currentMessageObject);
+            if (!currentMessageObject.isOut() && currentMessageObject.isContentUnread()) {
+                if (currentMessageObject.messageOwner.to_id.channel_id == 0) {
+                    MessagesController.getInstance().markMessageContentAsRead(currentMessageObject);
+                    currentMessageObject.setContentIsRead();
+                }
+            }
             if (result) {
                 buttonState = 1;
                 invalidate();
@@ -245,11 +248,11 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
                 invalidate();
             }
         } else if (buttonState == 2) {
-            FileLoader.getInstance().loadFile(currentMessageObject.messageOwner.media.audio, true);
+            FileLoader.getInstance().loadFile(currentMessageObject.getDocument(), true, false);
             buttonState = 3;
             invalidate();
         } else if (buttonState == 3) {
-            FileLoader.getInstance().cancelLoadFile(currentMessageObject.messageOwner.media.audio);
+            FileLoader.getInstance().cancelLoadFile(currentMessageObject.getDocument());
             buttonState = 2;
             invalidate();
         }
@@ -266,7 +269,13 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
 
         int duration = 0;
         if (!MediaController.getInstance().isPlayingAudio(currentMessageObject)) {
-            duration = currentMessageObject.messageOwner.media.audio.duration;
+            for (int a = 0; a < currentMessageObject.getDocument().attributes.size(); a++) {
+                TLRPC.DocumentAttribute attribute = currentMessageObject.getDocument().attributes.get(a);
+                if (attribute instanceof TLRPC.TL_documentAttributeAudio) {
+                    duration = attribute.duration;
+                    break;
+                }
+            }
         } else {
             duration = currentMessageObject.audioProgressSec;
         }
@@ -280,7 +289,7 @@ public class PopupAudioView extends BaseCell implements SeekBar.SeekBarDelegate,
 
     public void downloadAudioIfNeed() {
         if (buttonState == 2) {
-            FileLoader.getInstance().loadFile(currentMessageObject.messageOwner.media.audio, true);
+            FileLoader.getInstance().loadFile(currentMessageObject.getDocument(), true, false);
             buttonState = 3;
             invalidate();
         }

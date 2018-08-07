@@ -3,7 +3,7 @@
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Cells;
@@ -20,14 +20,16 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.AnimationCompat.ViewProxy;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.ui.Components.LayoutHelper;
 
 public class PhotoPickerSearchCell extends LinearLayout {
 
-    public static interface PhotoPickerSearchCellDelegate {
-        public abstract void didPressedSearchButton(int index);
+    public interface PhotoPickerSearchCellDelegate {
+        void didPressedSearchButton(int index);
     }
 
     private class SearchButton extends FrameLayout {
@@ -44,20 +46,11 @@ public class PhotoPickerSearchCell extends LinearLayout {
 
             selector = new View(context);
             selector.setBackgroundResource(R.drawable.list_selector);
-            addView(selector);
-            FrameLayout.LayoutParams layoutParams1 = (FrameLayout.LayoutParams) selector.getLayoutParams();
-            layoutParams1.width = LayoutParams.MATCH_PARENT;
-            layoutParams1.height = LayoutParams.MATCH_PARENT;
-            selector.setLayoutParams(layoutParams1);
+            addView(selector, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
             imageView = new ImageView(context);
             imageView.setScaleType(ImageView.ScaleType.CENTER);
-            addView(imageView);
-            FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) imageView.getLayoutParams();
-            layoutParams.height = AndroidUtilities.dp(48);
-            layoutParams.width = AndroidUtilities.dp(48);
-            layoutParams1.gravity = Gravity.LEFT | Gravity.TOP;
-            imageView.setLayoutParams(layoutParams);
+            addView(imageView, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.TOP));
 
             textView1 = new TextView(context);
             textView1.setGravity(Gravity.CENTER_VERTICAL);
@@ -66,15 +59,7 @@ public class PhotoPickerSearchCell extends LinearLayout {
             textView1.setTextColor(0xffffffff);
             textView1.setSingleLine(true);
             textView1.setEllipsize(TextUtils.TruncateAt.END);
-            addView(textView1);
-            layoutParams1 = (FrameLayout.LayoutParams) textView1.getLayoutParams();
-            layoutParams1.width = LayoutParams.MATCH_PARENT;
-            layoutParams1.height = LayoutParams.WRAP_CONTENT;
-            layoutParams1.gravity = Gravity.TOP | Gravity.LEFT;
-            layoutParams1.rightMargin = AndroidUtilities.dp(4);
-            layoutParams1.leftMargin = AndroidUtilities.dp(51);
-            layoutParams1.topMargin = AndroidUtilities.dp(8);
-            textView1.setLayoutParams(layoutParams1);
+            addView(textView1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 51, 8, 4, 0));
 
             textView2 = new TextView(context);
             textView2.setGravity(Gravity.CENTER_VERTICAL);
@@ -83,15 +68,7 @@ public class PhotoPickerSearchCell extends LinearLayout {
             textView2.setTextColor(0xff666666);
             textView2.setSingleLine(true);
             textView2.setEllipsize(TextUtils.TruncateAt.END);
-            addView(textView2);
-            layoutParams1 = (FrameLayout.LayoutParams) textView2.getLayoutParams();
-            layoutParams1.width = LayoutParams.MATCH_PARENT;
-            layoutParams1.height = LayoutParams.WRAP_CONTENT;
-            layoutParams1.gravity = Gravity.TOP | Gravity.LEFT;
-            layoutParams1.leftMargin = AndroidUtilities.dp(51);
-            layoutParams1.rightMargin = AndroidUtilities.dp(4);
-            layoutParams1.topMargin = AndroidUtilities.dp(26);
-            textView2.setLayoutParams(layoutParams1);
+            addView(textView2, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.LEFT, 51, 26, 4, 0));
         }
 
         @Override
@@ -105,7 +82,7 @@ public class PhotoPickerSearchCell extends LinearLayout {
 
     private PhotoPickerSearchCellDelegate delegate;
 
-    public PhotoPickerSearchCell(Context context) {
+    public PhotoPickerSearchCell(Context context, boolean allowGifs) {
         super(context);
         setOrientation(HORIZONTAL);
 
@@ -149,14 +126,18 @@ public class PhotoPickerSearchCell extends LinearLayout {
         layoutParams.height = AndroidUtilities.dp(48);
         layoutParams.width = 0;
         searchButton.setLayoutParams(layoutParams);
-        searchButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (delegate != null) {
-                    delegate.didPressedSearchButton(1);
+        if (allowGifs) {
+            searchButton.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (delegate != null) {
+                        delegate.didPressedSearchButton(1);
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            ViewProxy.setAlpha(searchButton, 0.5f);
+        }
     }
 
     public void setDelegate(PhotoPickerSearchCellDelegate delegate) {

@@ -1,60 +1,73 @@
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:1.1.0'
-    }
-}
 apply plugin: 'com.android.application'
 
 repositories {
     mavenCentral()
+    google()
 }
 
 dependencies {
-    compile 'com.android.support:support-v4:21.0.+'
-    compile 'com.google.android.gms:play-services:3.2.+'
-    compile 'net.hockeyapp.android:HockeySDK:3.5.+'
+    compile 'com.android.support:support-v4:23.3.0'
+    compile 'com.google.android.gms:play-services-gcm:8.4.0'
+    //compile "com.google.android.gms:play-services-gcm:9.2.0"
+    compile 'com.google.android.gms:play-services-maps:8.4.0'
+    compile 'net.hockeyapp.android:HockeySDK:4.0.0-beta.1'
     compile 'com.googlecode.mp4parser:isoparser:1.0.+'
-    compile 'com.android.support:recyclerview-v7:+'
 }
 
 android {
-    compileSdkVersion 21
-    buildToolsVersion '21.1.2'
+    compileSdkVersion 23
+    buildToolsVersion '26.0.3'
+
+
+//    useDeprecatedNdk 'true'
+    useLibrary 'org.apache.http.legacy'
+    //defaultConfig.applicationId = "org.telegram.messenger"
+    // defaultConfig.applicationId = "org.telegram.plus.beta"
+    // defaultConfig.applicationId = "org.telegram.plus.betas"
+    // defaultConfig.applicationId = "br.com.r4dar"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
+
     }
 
     signingConfigs {
-        debug {
-            storeFile file("config/debug.keystore")
-        }
-
-        release {
+//        debug {
+//            storeFile file("config/debug.keystore")
+//            //storeFile file("config/release.keystore")
+//            //storePassword RELEASE_STORE_PASSWORD
+//            //keyAlias RELEASE_KEY_ALIAS
+//            //keyPassword RELEASE_KEY_PASSWORD
+//        }
+        /*release {
             storeFile file("config/release.keystore")
             storePassword RELEASE_STORE_PASSWORD
             keyAlias RELEASE_KEY_ALIAS
             keyPassword RELEASE_KEY_PASSWORD
+        }*/
+        release {
+            storeFile file('/Users/pablo/Documents/WORK/Radar/android/_signAPK/release.keystore')
+            storePassword 'RedeNinja1234'
+            keyAlias 'RedeNinja'
+            keyPassword 'RedeNinja1234'
         }
     }
 
     buildTypes {
-        debug {
-            debuggable true
-            jniDebuggable true
-            signingConfig signingConfigs.debug
-        }
-
+//        debug {
+//            debuggable true
+//            jniDebuggable true
+//            signingConfig signingConfigs.debug
+//           // applicationIdSuffix ".beta"
+//        }
         release {
             debuggable false
             jniDebuggable false
             //signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
-
         foss {
             debuggable false
             jniDebuggable false
@@ -62,33 +75,85 @@ android {
         }
     }
 
+    defaultConfig.versionCode = 798
+
+    defaultConfig.manifestPlaceholders = [HOCKEYAPP_APP_ID: ""]
+
     sourceSets.main {
         jniLibs.srcDir 'libs'
         jni.srcDirs = [] //disable automatic ndk-build call
+    }
+
+/*
+
+    sourceSets.release {
+        manifest.srcFile 'config/release/AndroidManifest.xml'
     }
 
     sourceSets.debug {
         manifest.srcFile 'config/debug/AndroidManifest.xml'
     }
 
-    sourceSets.release {
-        manifest.srcFile 'config/release/AndroidManifest.xml'
-    }
 
     sourceSets.foss {
         manifest.srcFile 'config/foss/AndroidManifest.xml'
-    }
+    }*/
 
     lintOptions {
         checkReleaseBuilds false
         abortOnError false
     }
 
+    flavorDimensions "rd"
+    productFlavors {
+        all {
+            applicationId = "br.com.r4dar"
+            dimension "rd"
+        }
+        arm {
+            applicationId = "br.com.r4dar"
+            ndk {
+                abiFilter "armeabi"
+            }
+            versionCode = 1
+        }
+        armv7 {
+            applicationId = "br.com.r4dar"
+            ndk {
+                abiFilter "armeabi-v7a"
+            }
+            versionCode = 1
+        }
+        x86 {
+            applicationId = "br.com.r4dar"
+            ndk {
+
+                abiFilter "x86"
+            }
+            versionCode = 1
+        }
+        fat {
+            applicationId = "br.com.r4dar"
+            versionCode = 1
+        }
+    }
+
+    applicationVariants.all { variant ->
+        def abiVersion = variant.productFlavors.get(0).versionCode
+        variant.mergedFlavor.versionCode = defaultConfig.versionCode * 10 + abiVersion;
+    }
+
     defaultConfig {
-        applicationId "org.telegram.plus"
-        minSdkVersion 8
-        targetSdkVersion 21
-        versionCode 458
-        versionName "2.5.2.1"
+        //multiDexEnabled true
+        minSdkVersion 23
+        targetSdkVersion 23
+        versionName "3.8.1.2"
+        manifestPlaceholders = [HOCKEYAPP_APP_ID: "c59aa51ddffd4cb5b8fc7fca858c3d11"]
+        applicationId 'br.com.r4dar'
+    }
+    dexOptions {
     }
 }
+
+apply plugin: 'com.google.gms.google-services'
+//android.useDeprecatedNdk=true

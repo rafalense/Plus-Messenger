@@ -1,16 +1,18 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Cells;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -18,8 +20,10 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.ui.Components.LayoutHelper;
 
 public class TextSettingsCell extends FrameLayout {
 
@@ -46,50 +50,28 @@ public class TextSettingsCell extends FrameLayout {
         textView.setSingleLine(true);
         textView.setEllipsize(TextUtils.TruncateAt.END);
         textView.setGravity((LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.CENTER_VERTICAL);
-        addView(textView);
-        LayoutParams layoutParams = (LayoutParams) textView.getLayoutParams();
-        layoutParams.width = LayoutParams.MATCH_PARENT;
-        layoutParams.height = LayoutParams.MATCH_PARENT;
-        layoutParams.leftMargin = AndroidUtilities.dp(17);
-        layoutParams.rightMargin = AndroidUtilities.dp(17);
-        layoutParams.gravity = LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT;
-        textView.setLayoutParams(layoutParams);
+        addView(textView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT) | Gravity.TOP, 17, 0, 45, 0));
 
         valueTextView = new TextView(context);
         //valueTextView.setTextColor(0xff2f8cc9);
-        //
         valueTextView.setTextColor(AndroidUtilities.getIntColor("themeColor"));
-        //
         valueTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         valueTextView.setLines(1);
         valueTextView.setMaxLines(1);
         valueTextView.setSingleLine(true);
         valueTextView.setEllipsize(TextUtils.TruncateAt.END);
         valueTextView.setGravity((LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL);
-        addView(valueTextView);
-        layoutParams = (LayoutParams) valueTextView.getLayoutParams();
-        layoutParams.width = LayoutParams.WRAP_CONTENT;
-        layoutParams.height = LayoutParams.MATCH_PARENT;
-        layoutParams.leftMargin = AndroidUtilities.dp(17);
-        layoutParams.rightMargin = AndroidUtilities.dp(17);
-        layoutParams.gravity = LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT;
-        valueTextView.setLayoutParams(layoutParams);
+        addView(valueTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.TOP, 17, 0, 17, 0));
 
         valueImageView = new ImageView(context);
         valueImageView.setScaleType(ImageView.ScaleType.CENTER);
-        valueImageView.setVisibility(GONE);
-        addView(valueImageView);
-        layoutParams = (LayoutParams) valueImageView.getLayoutParams();
-        layoutParams.width = LayoutParams.WRAP_CONTENT;
-        layoutParams.height = LayoutParams.WRAP_CONTENT;
-        layoutParams.leftMargin = AndroidUtilities.dp(LocaleController.isRTL ? 17 : 0);
-        layoutParams.rightMargin = AndroidUtilities.dp(LocaleController.isRTL ? 0 : 17);
-        layoutParams.gravity = (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL;
-        valueImageView.setLayoutParams(layoutParams);
+        valueImageView.setVisibility(INVISIBLE);
+        addView(valueImageView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, (LocaleController.isRTL ? Gravity.LEFT : Gravity.RIGHT) | Gravity.CENTER_VERTICAL, 17, 0, 17, 0));
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        setTheme();
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), AndroidUtilities.dp(48) + (needDivider ? 1 : 0));
 
         int availableWidth = getMeasuredWidth() - getPaddingLeft() - getPaddingRight() - AndroidUtilities.dp(34);
@@ -110,35 +92,57 @@ public class TextSettingsCell extends FrameLayout {
         textView.setTextColor(color);
     }
 
+    public void setTextValueColor(int color) {
+        valueTextView.setTextColor(color);
+    }
+
+    public void setDividerColor(int color) {
+        paint.setColor(color);
+    }
+
     public void setText(String text, boolean divider) {
         textView.setText(text);
-        valueTextView.setVisibility(GONE);
-        valueImageView.setVisibility(GONE);
+        valueTextView.setVisibility(INVISIBLE);
+        valueImageView.setVisibility(INVISIBLE);
         needDivider = divider;
         setWillNotDraw(!divider);
     }
 
     public void setTextAndValue(String text, String value, boolean divider) {
         textView.setText(text);
-        valueImageView.setVisibility(GONE);
+        valueImageView.setVisibility(INVISIBLE);
         if (value != null) {
             valueTextView.setText(value);
             valueTextView.setVisibility(VISIBLE);
         } else {
-            valueTextView.setVisibility(GONE);
+            valueTextView.setVisibility(INVISIBLE);
+        }
+        needDivider = divider;
+        setWillNotDraw(!divider);
+        requestLayout();
+    }
+
+    public void setTextAndIcon(String text, int resId, boolean divider) {
+        textView.setText(text);
+        valueTextView.setVisibility(INVISIBLE);
+        if (resId != 0) {
+            valueImageView.setVisibility(VISIBLE);
+            valueImageView.setImageResource(resId);
+        } else {
+            valueImageView.setVisibility(INVISIBLE);
         }
         needDivider = divider;
         setWillNotDraw(!divider);
     }
 
-    public void setTextAndIcon(String text, int resId, boolean divider) {
+    public void setTextAndIcon(String text, Drawable resDr, boolean divider) {
         textView.setText(text);
-        valueTextView.setVisibility(GONE);
-        if (resId != 0) {
+        valueTextView.setVisibility(INVISIBLE);
+        if (resDr != null) {
             valueImageView.setVisibility(VISIBLE);
-            valueImageView.setImageResource(resId);
+            valueImageView.setImageDrawable(resDr);
         } else {
-            valueImageView.setVisibility(GONE);
+            valueImageView.setVisibility(INVISIBLE);
         }
         needDivider = divider;
         setWillNotDraw(!divider);
@@ -149,5 +153,30 @@ public class TextSettingsCell extends FrameLayout {
         if (needDivider) {
             canvas.drawLine(getPaddingLeft(), getHeight() - 1, getWidth() - getPaddingRight(), getHeight() - 1, paint);
         }
+    }
+
+    private void setTheme(){
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int defColor = preferences.getInt("themeColor", AndroidUtilities.defColor);
+
+        int bgColor = preferences.getInt("prefBGColor", 0xffffffff);
+        int divColor = preferences.getInt("prefDividerColor", 0xffd9d9d9);
+        int titleColor = preferences.getInt("prefTitleColor", 0xff212121);
+        int sColor = preferences.getInt("prefSectionColor", defColor);
+        String tag = getTag() != null ? getTag().toString() : "";
+        if(tag.contains("Profile")){
+            bgColor = preferences.getInt("profileRowColor", 0xffffffff);
+            setBackgroundColor(bgColor);
+            if(bgColor != 0xffffffff)paint.setColor(bgColor);
+            titleColor = preferences.getInt("profileTitleColor", 0xff212121);
+            textView.setTextColor(titleColor);
+            if(bgColor != 0xffffffff)valueTextView.setTextColor(0x00000000);
+        }else{
+            setBackgroundColor(bgColor);
+            textView.setTextColor(titleColor);
+            paint.setColor(divColor);
+            valueTextView.setTextColor(sColor);
+        }
+
     }
 }
