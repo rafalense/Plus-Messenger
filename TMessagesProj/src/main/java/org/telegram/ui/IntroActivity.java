@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.3.2.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui;
@@ -11,6 +11,8 @@ package org.telegram.ui;
 import android.animation.ObjectAnimator;
 import android.animation.StateListAnimator;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.database.DataSetObserver;
@@ -19,7 +21,7 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.text.Html;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -28,12 +30,23 @@ import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.Utilities;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.Theme;
+
+import java.util.ArrayList;
 
 public class IntroActivity extends Activity {
+
+
+
+
     private ViewPager viewPager;
     private ImageView topImage1;
     private ImageView topImage2;
@@ -47,8 +60,18 @@ public class IntroActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO ", " >>>>>>>  INTRO AQUI <<<<<<");
+
         setTheme(R.style.Theme_TMessages);
         super.onCreate(savedInstanceState);
+        Theme.loadResources(this);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         if (AndroidUtilities.isTablet()) {
@@ -59,16 +82,16 @@ public class IntroActivity extends Activity {
         }
 
         if (LocaleController.isRTL) {
-            icons = new int[] {
+            icons = new int[]{
                     R.drawable.intro7,
                     R.drawable.intro6,
                     R.drawable.intro5,
                     R.drawable.intro4,
                     R.drawable.intro3,
                     R.drawable.intro2,
-                    R.drawable.intro1
+                    R.drawable.ic_launcher
             };
-            titles = new int[] {
+            titles = new int[]{
                     R.string.Page7Title,
                     R.string.Page6Title,
                     R.string.Page5Title,
@@ -77,7 +100,7 @@ public class IntroActivity extends Activity {
                     R.string.Page2Title,
                     R.string.Page1Title
             };
-            messages = new int[] {
+            messages = new int[]{
                     R.string.Page7Message,
                     R.string.Page6Message,
                     R.string.Page5Message,
@@ -87,8 +110,8 @@ public class IntroActivity extends Activity {
                     R.string.Page1Message
             };
         } else {
-            icons = new int[] {
-                    R.drawable.intro1,
+            icons = new int[]{
+                    R.drawable.ic_launcher,
                     R.drawable.intro2,
                     R.drawable.intro3,
                     R.drawable.intro4,
@@ -96,7 +119,7 @@ public class IntroActivity extends Activity {
                     R.drawable.intro6,
                     R.drawable.intro7
             };
-            titles = new int[] {
+            titles = new int[]{
                     R.string.Page1Title,
                     R.string.Page2Title,
                     R.string.Page3Title,
@@ -105,7 +128,7 @@ public class IntroActivity extends Activity {
                     R.string.Page6Title,
                     R.string.Page7Title
             };
-            messages = new int[] {
+            messages = new int[]{
                     R.string.Page1Message,
                     R.string.Page2Message,
                     R.string.Page3Message,
@@ -115,23 +138,24 @@ public class IntroActivity extends Activity {
                     R.string.Page7Message
             };
         }
-        viewPager = (ViewPager)findViewById(R.id.intro_view_pager);
+        viewPager = (ViewPager) findViewById(R.id.intro_view_pager);
         TextView startMessagingButton = (TextView) findViewById(R.id.start_messaging_button);
         startMessagingButton.setText(LocaleController.getString("StartMessaging", R.string.StartMessaging).toUpperCase());
         if (Build.VERSION.SDK_INT >= 21) {
             StateListAnimator animator = new StateListAnimator();
-            animator.addState(new int[] {android.R.attr.state_pressed}, ObjectAnimator.ofFloat(startMessagingButton, "translationZ", AndroidUtilities.dp(2), AndroidUtilities.dp(4)).setDuration(200));
-            animator.addState(new int[] {}, ObjectAnimator.ofFloat(startMessagingButton, "translationZ", AndroidUtilities.dp(4), AndroidUtilities.dp(2)).setDuration(200));
+            animator.addState(new int[]{android.R.attr.state_pressed}, ObjectAnimator.ofFloat(startMessagingButton, "translationZ", AndroidUtilities.dp(2), AndroidUtilities.dp(4)).setDuration(200));
+            animator.addState(new int[]{}, ObjectAnimator.ofFloat(startMessagingButton, "translationZ", AndroidUtilities.dp(4), AndroidUtilities.dp(2)).setDuration(200));
             startMessagingButton.setStateListAnimator(animator);
         }
-        topImage1 = (ImageView)findViewById(R.id.icon_image1);
-        topImage2 = (ImageView)findViewById(R.id.icon_image2);
-        bottomPages = (ViewGroup)findViewById(R.id.bottom_pages);
+        //topImage1 = (ImageView) findViewById(R.id.icon_image1);
+        topImage1 = (ImageView) findViewById(R.id.icon_image1);
+        topImage2 = (ImageView) findViewById(R.id.icon_image2);
+        bottomPages = (ViewGroup) findViewById(R.id.bottom_pages);
         topImage2.setVisibility(View.GONE);
         viewPager.setAdapter(new IntroAdapter());
         viewPager.setPageMargin(0);
         viewPager.setOffscreenPageLimit(1);
-        viewPager.setOnPageChangeListener(new ViewPager.OnPageChangeListener() {
+        viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
             @Override
             public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
 
@@ -220,9 +244,29 @@ public class IntroActivity extends Activity {
                 finish();
             }
         });
+        if (BuildVars.DEBUG_VERSION) {
+            startMessagingButton.setOnLongClickListener(new View.OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    ConnectionsManager.getInstance().switchBackend();
+                    return true;
+                }
+            });
+        }
 
         justCreated = true;
+
+
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+        Log.e(">>>>>>> INTRO AQUI ", " >>>>>>>  INTRO AQUI <<<<<<");
+
     }
+
 
     @Override
     protected void onResume() {
@@ -237,8 +281,14 @@ public class IntroActivity extends Activity {
             }
             justCreated = false;
         }
-        Utilities.checkForCrashes(this);
-        Utilities.checkForUpdates(this);
+            AndroidUtilities.checkForCrashes(this);
+        AndroidUtilities.checkForUpdates(this);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        AndroidUtilities.unregisterUpdates();
     }
 
     private class IntroAdapter extends PagerAdapter {
@@ -250,12 +300,12 @@ public class IntroActivity extends Activity {
         @Override
         public Object instantiateItem(ViewGroup container, int position) {
             View view = View.inflate(container.getContext(), R.layout.intro_view_layout, null);
-            TextView headerTextView = (TextView)view.findViewById(R.id.header_text);
-            TextView messageTextView = (TextView)view.findViewById(R.id.message_text);
+            TextView headerTextView = (TextView) view.findViewById(R.id.header_text);
+            TextView messageTextView = (TextView) view.findViewById(R.id.message_text);
             container.addView(view, 0);
 
             headerTextView.setText(getString(titles[position]));
-            messageTextView.setText(Html.fromHtml(getString(messages[position])));
+            messageTextView.setText(AndroidUtilities.replaceTags(getString(messages[position])));
 
             return view;
         }
@@ -273,7 +323,7 @@ public class IntroActivity extends Activity {
                 View child = bottomPages.getChildAt(a);
                 if (a == position) {
                     //child.setBackgroundColor(0xff2ca5e0);
-                    child.setBackgroundColor(0xff58BCD5);
+                    child.setBackgroundColor(AndroidUtilities.defColor);
                 } else {
                     child.setBackgroundColor(0xffbbbbbb);
                 }
@@ -286,20 +336,12 @@ public class IntroActivity extends Activity {
         }
 
         @Override
-        public void finishUpdate(View arg0) {
-        }
-
-        @Override
         public void restoreState(Parcelable arg0, ClassLoader arg1) {
         }
 
         @Override
         public Parcelable saveState() {
             return null;
-        }
-
-        @Override
-        public void startUpdate(View arg0) {
         }
 
         @Override

@@ -3,7 +3,7 @@
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Cells;
@@ -15,8 +15,9 @@ import android.view.Gravity;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.ui.Components.FrameLayoutFixed;
+import org.telegram.ui.Components.LayoutHelper;
 
 public class PhotoEditToolCell extends FrameLayoutFixed {
 
@@ -29,12 +30,7 @@ public class PhotoEditToolCell extends FrameLayoutFixed {
 
         iconImage = new ImageView(context);
         iconImage.setScaleType(ImageView.ScaleType.CENTER);
-        addView(iconImage);
-        LayoutParams layoutParams = (LayoutParams) iconImage.getLayoutParams();
-        layoutParams.width = LayoutParams.MATCH_PARENT;
-        layoutParams.height = LayoutParams.MATCH_PARENT;
-        layoutParams.bottomMargin = AndroidUtilities.dp(12);
-        iconImage.setLayoutParams(layoutParams);
+        addView(iconImage, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.TOP | Gravity.LEFT, 0, 0, 0, 12));
 
         nameTextView = new TextView(context);
         nameTextView.setGravity(Gravity.CENTER);
@@ -44,27 +40,13 @@ public class PhotoEditToolCell extends FrameLayoutFixed {
         nameTextView.setMaxLines(1);
         nameTextView.setSingleLine(true);
         nameTextView.setEllipsize(TextUtils.TruncateAt.END);
-        addView(nameTextView);
-        layoutParams = (LayoutParams) nameTextView.getLayoutParams();
-        layoutParams.width = LayoutParams.MATCH_PARENT;
-        layoutParams.height = LayoutParams.WRAP_CONTENT;
-        layoutParams.gravity = Gravity.LEFT | Gravity.BOTTOM;
-        layoutParams.leftMargin = AndroidUtilities.dp(4);
-        layoutParams.rightMargin = AndroidUtilities.dp(4);
-        nameTextView.setLayoutParams(layoutParams);
+        addView(nameTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.BOTTOM, 4, 0, 4, 0));
 
         valueTextView = new TextView(context);
         valueTextView.setTextColor(0xff6cc3ff);
         valueTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11);
         valueTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        addView(valueTextView);
-        layoutParams = (LayoutParams) valueTextView.getLayoutParams();
-        layoutParams.width = LayoutParams.WRAP_CONTENT;
-        layoutParams.height = LayoutParams.WRAP_CONTENT;
-        layoutParams.gravity = Gravity.LEFT | Gravity.TOP;
-        layoutParams.leftMargin = AndroidUtilities.dp(57);
-        layoutParams.topMargin = AndroidUtilities.dp(3);
-        valueTextView.setLayoutParams(layoutParams);
+        addView(valueTextView, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.LEFT | Gravity.TOP, 57, 3, 0, 0));
     }
 
     @Override
@@ -82,5 +64,11 @@ public class PhotoEditToolCell extends FrameLayoutFixed {
         } else {
             valueTextView.setText("" + (int) value);
         }
+    }
+
+    public void setIconAndTextAndValue(int resId, String text, String value) {
+        iconImage.setImageResource(resId);
+        nameTextView.setText(text.toUpperCase());
+        valueTextView.setText(value);
     }
 }

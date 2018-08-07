@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.3.2.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui;
@@ -13,7 +13,10 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.res.Configuration;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,10 +28,12 @@ import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.LocaleController;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
+import org.telegram.messenger.Utilities;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Adapters.BaseFragmentAdapter;
@@ -37,7 +42,6 @@ import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextColorCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Cells.TextSettingsCell;
-import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.ColorSelectorDialog;
 
 import java.io.File;
@@ -62,12 +66,17 @@ public class ThemingActivity extends BaseFragment {
     private int chatsRow;
     private int chatRow;
     private int contactsRow;
+    private int drawerRow;
+    private int profileRow;
+    private int settingsRow;
 
     private int themesSectionRow;
     private int themesSection2Row;
     private int resetThemeRow;
     private int saveThemeRow;
     private int applyThemeRow;
+
+    private int dialogColorRow;
 
     private int rowCount;
 
@@ -80,12 +89,16 @@ public class ThemingActivity extends BaseFragment {
         rowCount = 0;
         generalSection2Row = rowCount++;
         themeColorRow = rowCount++;
+        dialogColorRow = rowCount++;
 
         screensSectionRow = rowCount++;
         screensSection2Row = rowCount++;
         chatsRow = rowCount++;
         chatRow = rowCount++;
         contactsRow = rowCount++;
+        drawerRow = rowCount++;
+        profileRow = rowCount++;
+        settingsRow = rowCount++;
 
         themesSectionRow = rowCount++;
         themesSection2Row = rowCount++;
@@ -101,32 +114,22 @@ public class ThemingActivity extends BaseFragment {
         super.onFragmentDestroy();
         if(AndroidUtilities.needRestart){
             //AndroidUtilities.needRestart = false;
-            AndroidUtilities.restartApp();
+            Utilities.restartApp();
         }
     }
 
     @Override
-    public View createView(LayoutInflater inflater) {
+    public View createView(Context context) {
         if (fragmentView == null) {
-            //SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(THEME_PREFS, Activity.MODE_PRIVATE);
-            //themeColor = themePrefs.getInt("themeColor", defThemeColor);
-            //actionBar.setBackgroundColor(AvatarDrawable.getProfileBackColorForId(5));
-            //actionBar.setBackgroundColor(themeColor);
 
-            actionBar.setItemsBackground(AvatarDrawable.getButtonColorForId(5));
+            //actionBar.setItemsBackground(AvatarDrawable.getButtonColorForId(5));
             actionBar.setBackButtonImage(R.drawable.ic_ab_back);
 
-            //actionBar.setExtraHeight(AndroidUtilities.dp(88), false);
             if (AndroidUtilities.isTablet()) {
                 actionBar.setOccupyStatusBar(false);
             }
             actionBar.setTitle(LocaleController.getString("Theming", R.string.Theming));
 
-            //plus
-            //TextView title = (TextView)getParentActivity().findViewById(R.id.action_bar_title);
-            //AndroidUtilities.paintActionBarHeader(getParentActivity(),actionBar,"chatsHeaderBackgroundColorCheck","");
-            //AndroidUtilities.setTVTextColor(getParentActivity(),title,"plus_header_title_color_check", Color.WHITE);
-            //plus*
             actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
                 @Override
                 public void onItemClick(int id) {
@@ -135,23 +138,22 @@ public class ThemingActivity extends BaseFragment {
                     }
                 }
             });
-            /*
-            ActionBarMenu menu = actionBar.createMenu();
-            ActionBarMenuItem item = menu.addItem(0, R.drawable.ic_ab_other);
-            item.addSubItem(edit_name, LocaleController.getString("EditName", R.string.EditName), 0);
-            item.addSubItem(logout, LocaleController.getString("LogOut", R.string.LogOut), 0);
-            */
-            listAdapter = new ListAdapter(getParentActivity());
 
-            fragmentView = new FrameLayout(getParentActivity());
+            listAdapter = new ListAdapter(context);
+
+            fragmentView = new FrameLayout(context);
             FrameLayout frameLayout = (FrameLayout) fragmentView;
 
 
-            listView = new ListView(getParentActivity());
+            listView = new ListView(context);
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+            listView.setBackgroundColor(preferences.getInt("prefBGColor", 0xffffffff));
             listView.setDivider(null);
             listView.setDividerHeight(0);
             listView.setVerticalScrollBarEnabled(false);
-            AndroidUtilities.setListViewEdgeEffectColor(listView, AvatarDrawable.getProfileBackColorForId(5));
+            int def = preferences.getInt("themeColor", AndroidUtilities.defColor);
+            int hColor = preferences.getInt("prefHeaderColor", def);
+            AndroidUtilities.setListViewEdgeEffectColor(listView, /*AvatarDrawable.getProfileBackColorForId(5)*/ hColor);
             frameLayout.addView(listView);
             FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) listView.getLayoutParams();
             layoutParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
@@ -163,14 +165,17 @@ public class ThemingActivity extends BaseFragment {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, final int i, long l) {
 
+                    SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+                    int defColor = preferences.getInt("themeColor", AndroidUtilities.defColor);
+
                     if (i == themeColorRow) {
                         if (getParentActivity() == null) {
                             return;
                         }
-                        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, Activity.MODE_PRIVATE);
+                        //SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
                         LayoutInflater li = (LayoutInflater)getParentActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
-                        view = li.inflate(R.layout.colordialog, null, false);
+                        li.inflate(R.layout.colordialog, null, false);
 
                         ColorSelectorDialog colorDialog = new ColorSelectorDialog(getParentActivity(), new OnColorChangedListener() {
                             @Override
@@ -178,8 +183,22 @@ public class ThemingActivity extends BaseFragment {
                                 commitInt(color);
                             }
 
-                        },preferences.getInt("themeColor", AndroidUtilities.defColor), CENTER, 0, false);
+                        }, defColor, CENTER, 0, false);
 
+                        colorDialog.show();
+                    } else if (i == dialogColorRow) {
+                        if (getParentActivity() == null) {
+                            return;
+                        }
+                        //SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+                        LayoutInflater li = (LayoutInflater)getParentActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                        li.inflate(R.layout.colordialog, null, false);
+                        ColorSelectorDialog colorDialog = new ColorSelectorDialog(getParentActivity(), new OnColorChangedListener() {
+                            @Override
+                            public void colorChanged(int color) {
+                                commitInt("dialogColor", color);
+                            }
+                        },preferences.getInt("dialogColor", defColor), CENTER, 0, false);
                         colorDialog.show();
                     } else if(i == saveThemeRow){
                         LayoutInflater li = LayoutInflater.from(getParentActivity());
@@ -187,8 +206,12 @@ public class ThemingActivity extends BaseFragment {
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
                         builder.setView(promptsView);
                         final EditText userInput = (EditText) promptsView.findViewById(R.id.editTextDialogUserInput);
-                        builder.setMessage(LocaleController.getString("EnterName", R.string.EnterName));
-                        //builder.setTitle(LocaleController.getString("SaveTheme", R.string.SaveTheme));
+                        userInput.setHint(LocaleController.getString("EnterName", R.string.EnterName));
+                        userInput.setHintTextColor(0xff979797);
+                        userInput.getBackground().setColorFilter(preferences.getInt("dialogColor", defColor), PorterDuff.Mode.SRC_IN);
+                        AndroidUtilities.clearCursorDrawable(userInput);
+                        //builder.setMessage(LocaleController.getString("EnterName", R.string.EnterName));
+                        builder.setTitle(LocaleController.getString("SaveTheme", R.string.SaveTheme));
                         builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
@@ -202,9 +225,16 @@ public class ThemingActivity extends BaseFragment {
                                         saving = false;
                                         if (getParentActivity() != null) {
                                             String pName = userInput.getText().toString();
-                                            AndroidUtilities.setStringPref(getParentActivity(),"themeName",pName);
-                                            AndroidUtilities.savePreferencesToSD(getParentActivity(), AndroidUtilities.THEME_PREFS+".xml", pName+".xml", true);
-                                            AndroidUtilities.copyWallpaperToSD(getParentActivity(), pName, true);
+                                            AndroidUtilities.setStringPref(getParentActivity(), "themeName", pName);
+                                            try{
+                                                PackageInfo pInfo = ApplicationLoader.applicationContext.getPackageManager().getPackageInfo(ApplicationLoader.applicationContext.getPackageName(), 0);
+                                                AndroidUtilities.setStringPref(getParentActivity(),"version", pInfo.versionName);
+                                            } catch (Exception e) {
+                                                FileLog.e("tmessages", e);
+                                            }
+                                            AndroidUtilities.setStringPref(getParentActivity(),"model", android.os.Build.MODEL+"/"+android.os.Build.VERSION.RELEASE);
+                                            Utilities.savePreferencesToSD(getParentActivity(), "/Telegram/Themes", AndroidUtilities.THEME_PREFS+".xml", pName+".xml", true);
+                                            Utilities.copyWallpaperToSD(getParentActivity(), pName, true);
                                             //Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("SaveThemeToastText", R.string.SaveThemeToastText), Toast.LENGTH_SHORT);
                                             //toast.show();
                                         }
@@ -212,9 +242,11 @@ public class ThemingActivity extends BaseFragment {
                                 });
                             }
                         });
+
                         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                        showAlertDialog(builder);
-                    }  else if (i == applyThemeRow) {
+                        showDialog(builder.create());
+
+                    } else if (i == applyThemeRow) {
                         DocumentSelectActivity fragment = new DocumentSelectActivity();
                         fragment.fileFilter = ".xml";
                         fragment.setDelegate(new DocumentSelectActivity.DocumentSelectActivityDelegate() {
@@ -248,16 +280,17 @@ public class ThemingActivity extends BaseFragment {
                                         AndroidUtilities.runOnUIThread(new Runnable() {
                                             @Override
                                             public void run() {
-                                                    if(AndroidUtilities.loadPrefFromSD(getParentActivity(), xmlFile) == 4){
-                                                        AndroidUtilities.loadWallpaperFromSDPath(getParentActivity(), wName);
-                                                        AndroidUtilities.restartApp();
+                                                    if( Utilities.loadPrefFromSD(getParentActivity(), xmlFile) == 4){
+                                                        //Utilities.loadWallpaperFromSDPath(getParentActivity(), wName);
+                                                        Utilities.applyWallpaper(wName);
+                                                        Utilities.restartApp();
                                                     }
                                             }
                                         });
                                     }
                                 });
                                 builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                                showAlertDialog(builder);
+                                showDialog(builder.create());
                             }
 
                             @Override
@@ -279,7 +312,7 @@ public class ThemingActivity extends BaseFragment {
                                             @Override
                                             public void run() {
                                                 reseting = false;
-                                                SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, Activity.MODE_PRIVATE);
+                                                SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
                                                 SharedPreferences.Editor editor = themePrefs.edit();
                                                 editor.clear();
                                                 editor.commit();
@@ -301,16 +334,31 @@ public class ThemingActivity extends BaseFragment {
                                             }
                                 });
                                 AndroidUtilities.needRestart = true;
+                                AndroidUtilities.runOnUIThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (getParentActivity() != null) {
+                                            Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("AppWillRestart", R.string.AppWillRestart), Toast.LENGTH_SHORT);
+                                            toast.show();
+                                        }
+                                    }
+                                });
                             }
                         });
                         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                        showAlertDialog(builder);
+                        showDialog(builder.create());
                     } else if (i == chatsRow) {
                         presentFragment(new ThemingChatsActivity());
                     } else if (i == chatRow) {
                         presentFragment(new ThemingChatActivity());
                     } else if (i == contactsRow) {
                         presentFragment(new ThemingContactsActivity());
+                    } else if (i == drawerRow) {
+                        presentFragment(new ThemingDrawerActivity());
+                    } else if (i == profileRow) {
+                        presentFragment(new ThemingProfileActivity());
+                    } else if (i == settingsRow) {
+                        presentFragment(new ThemingSettingsActivity());
                     }
                 }
             });
@@ -323,6 +371,8 @@ public class ThemingActivity extends BaseFragment {
                     }
                     if (i == themeColorRow) {
                         commitInt(AndroidUtilities.defColor);
+                    } else if(i == dialogColorRow){
+                        resetPref("dialogColor");
                     }
                     return true;
                 }
@@ -339,91 +389,57 @@ public class ThemingActivity extends BaseFragment {
         return fragmentView;
     }
 
-    private void showAttachmentError() {
-        if (getParentActivity() == null) {
-            return;
+    private void resetPref(String key){
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.remove(key);
+        editor.commit();
+        if (listView != null) {
+            listView.invalidateViews();
         }
-        Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("UnsupportedAttachment", R.string.UnsupportedAttachment), Toast.LENGTH_SHORT);
-        toast.show();
     }
-/*
-    @Override
-    public void onActivityResultFragment(int requestCode, int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK) {
-            if (requestCode == 0) {
 
-            } else if (requestCode == 22) {
-                if (data == null || data.getData() == null) {
-                    showAttachmentError();
-                    return;
-                }
-                String tempPath = Utilities.getPath(data.getData());
-                String originalPath = tempPath;
-                if (tempPath == null) {
-                    originalPath = data.toString();
-                    tempPath = MediaController.copyDocumentToCache(data.getData(), "file");
-                }
-                if (tempPath == null) {
-                    showAttachmentError();
-                    return;
-                }
-                Toast toast = Toast.makeText(getParentActivity(), tempPath + "\n " + originalPath, Toast.LENGTH_SHORT);
-                toast.show();
-                //SendMessagesHelper.prepareSendingDocument(tempPath, originalPath, null, null, Long.parseLong(null));
-            }
+    private void commitInt(String key, int value){
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putInt(key, value);
+        editor.commit();
+        if (listView != null) {
+            listView.invalidateViews();
         }
-    }*/
-/*
-    private void saveThemeDialog(){
-
-        LayoutInflater li = LayoutInflater.from(getParentActivity());
-        View promptsView = li.inflate(R.layout.editbox_dialog, null);
-        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(getParentActivity());
-        alertDialogBuilder.setView(promptsView);
-        final EditText userInput = (EditText) promptsView.findViewById(R.id.editTextDialogUserInput);
-
-        alertDialogBuilder
-                .setCancelable(false)
-                .setPositiveButton(R.string.ok,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,int id) {
-                                savePrefs(Utils.this);
-                                String pName = userInput.getText().toString();
-                                functions.savePreferencesToSD(Utils.this,my_pref_file_name+".xml",pName+".xml",true);
-                                functions.copyWallpaperToSD(Utils.this,pName,true);
-                            }
-                        })
-                .setNegativeButton(R.string.cancel,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,int id) {
-                                dialog.cancel();
-                            }
-                        });
-        AlertDialog alertDialog = alertDialogBuilder.create();
-        alertDialog.show();
-    }*/
+    }
 
     private void commitInt(int i){
-        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, Activity.MODE_PRIVATE);
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
         SharedPreferences.Editor editor = preferences.edit();
         editor.putInt("themeColor", i);
+        AndroidUtilities.themeColor = i;
+        editor.commit();
         //Reset Theme Colors
+        int darkColor = AndroidUtilities.setDarkColor(i, 0x15);
         editor.putInt("chatsHeaderColor", i);
         editor.putInt("chatsCountBGColor", i);
         editor.putInt("chatsChecksColor", i);
-        editor.putInt("chatsParticipantColor", AndroidUtilities.setDarkColor(i, 0x15));
+        editor.putInt("chatsMemberColor", darkColor);
+        editor.putInt("chatsMediaColor", preferences.getInt("chatsMemberColor", darkColor));
         editor.putInt("chatsFloatingBGColor", i);
 
         editor.putInt("chatHeaderColor", i);
-        editor.putInt("chatRBubbleColor", AndroidUtilities.setDarkColor(i, -0x80));
+        editor.putInt("chatRBubbleColor", AndroidUtilities.getDefBubbleColor());
         editor.putInt("chatStatusColor", AndroidUtilities.setDarkColor(i, -0x40));
-        editor.putInt("chatRTimeColor", AndroidUtilities.setDarkColor(i, 0x15));
-        editor.putInt("chatEmojiViewTabColor", AndroidUtilities.setDarkColor(i, 0x15));
+        editor.putInt("chatRTimeColor", darkColor);
+        editor.putInt("chatEmojiViewTabColor", AndroidUtilities.setDarkColor(i, -0x15));
         editor.putInt("chatChecksColor", i);
         editor.putInt("chatSendIconColor", i);
+        editor.putInt("chatMemberColor", darkColor);
+        editor.putInt("chatForwardColor", darkColor);
 
         editor.putInt("contactsHeaderColor", i);
-        editor.putInt("contactsOnlineColor", AndroidUtilities.setDarkColor(i, 0x15));
+        editor.putInt("contactsOnlineColor", darkColor);
+
+        editor.putInt("prefHeaderColor", i);
+
+        editor.putInt("dialogColor", i);
 
         editor.commit();
         fixLayout();
@@ -437,6 +453,18 @@ public class ThemingActivity extends BaseFragment {
             listAdapter.notifyDataSetChanged();
         }
         fixLayout();
+        updateTheme();
+    }
+
+    private void updateTheme(){
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int def = themePrefs.getInt("themeColor", AndroidUtilities.defColor);
+        actionBar.setBackgroundColor(themePrefs.getInt("prefHeaderColor", def));
+        actionBar.setTitleColor(themePrefs.getInt("prefHeaderTitleColor", 0xffffffff));
+
+        Drawable back = getParentActivity().getResources().getDrawable(R.drawable.ic_ab_back);
+        back.setColorFilter(themePrefs.getInt("prefHeaderIconsColor", 0xffffffff), PorterDuff.Mode.MULTIPLY);
+        actionBar.setBackButtonDrawable(back);
     }
 
     @Override
@@ -478,7 +506,7 @@ public class ThemingActivity extends BaseFragment {
 
         @Override
         public boolean isEnabled(int i) {
-            return  i == themeColorRow || i == chatsRow || i == chatRow || i == contactsRow || i == resetThemeRow || i == saveThemeRow || i == applyThemeRow;
+            return  i == themeColorRow || i == dialogColorRow || i == chatsRow || i == chatRow || i == contactsRow || i == drawerRow || i == profileRow || i == settingsRow || i == resetThemeRow || i == saveThemeRow || i == applyThemeRow;
         }
 
         @Override
@@ -512,7 +540,7 @@ public class ThemingActivity extends BaseFragment {
             else if (type == 1) {
                 if (view == null) {
                     view = new HeaderCell(mContext);
-                    view.setBackgroundColor(0xffffffff);
+                    //view.setBackgroundColor(0xffffffff);
                 }
                 if (i == generalSection2Row) {
                     ((HeaderCell) view).setText(LocaleController.getString("General", R.string.General));
@@ -533,23 +561,29 @@ public class ThemingActivity extends BaseFragment {
                     textCell.setText(LocaleController.getString("ChatScreen", R.string.ChatScreen), true);
                 } else if (i == contactsRow) {
                     textCell.setText(LocaleController.getString("ContactsScreen", R.string.ContactsScreen), true);
+                } else if (i == drawerRow) {
+                    textCell.setText(LocaleController.getString("NavigationDrawer", R.string.NavigationDrawer), true);
+                } else if (i == profileRow) {
+                    textCell.setText(LocaleController.getString("ProfileScreen", R.string.ProfileScreen), true);
+                } else if (i == settingsRow) {
+                    textCell.setText(LocaleController.getString("SettingsScreen", R.string.SettingsScreen), false);
                 }
-
             }
             else if (type == 3) {
                 if (view == null) {
                     view = new TextDetailSettingsCell(mContext);
                 }
                 TextDetailSettingsCell textCell = (TextDetailSettingsCell) view;
-                if (i == resetThemeRow) {
+                //textCell.setBackgroundColor(0xffffffff);
+                if (i == saveThemeRow) {
+                    textCell.setMultilineDetail(true);
+                    textCell.setTextAndValue(LocaleController.getString("SaveTheme", R.string.SaveTheme), LocaleController.getString("SaveThemeSum", R.string.SaveThemeSum), true);
+                } else if (i == applyThemeRow) {
+                    textCell.setMultilineDetail(true);
+                    textCell.setTextAndValue(LocaleController.getString("ApplyTheme", R.string.ApplyTheme), LocaleController.getString("ApplyThemeSum", R.string.ApplyThemeSum), true);
+                } else if (i == resetThemeRow) {
                     textCell.setMultilineDetail(true);
                     textCell.setTextAndValue(LocaleController.getString("ResetThemeSettings", R.string.ResetThemeSettings), LocaleController.getString("ResetThemeSettingsSum", R.string.ResetThemeSettingsSum), false);
-                } else if (i == saveThemeRow) {
-                    textCell.setMultilineDetail(true);
-                    textCell.setTextAndValue(LocaleController.getString("SaveTheme", R.string.SaveTheme), LocaleController.getString("SaveThemeSum", R.string.SaveThemeSum), false);
-                }  else if (i == applyThemeRow) {
-                    textCell.setMultilineDetail(true);
-                    textCell.setTextAndValue(LocaleController.getString("ApplyTheme", R.string.ApplyTheme), LocaleController.getString("ApplyThemeSum", R.string.ApplyThemeSum), false);
                 }
             }
             else if (type == 4){
@@ -557,8 +591,14 @@ public class ThemingActivity extends BaseFragment {
                     view = new TextColorCell(mContext);
                 }
                 TextColorCell textCell = (TextColorCell) view;
+
+                SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+                int defColor = preferences.getInt("themeColor", AndroidUtilities.defColor);
+
                 if (i == themeColorRow) {
-                    textCell.setTextAndColor(LocaleController.getString("themeColor", R.string.themeColor), AndroidUtilities.getIntColor("themeColor"), true);
+                    textCell.setTextAndColor(LocaleController.getString("themeColor", R.string.themeColor), defColor, true);
+                } else if (i == dialogColorRow) {
+                    textCell.setTextAndColor(LocaleController.getString("DialogColor", R.string.DialogColor), preferences.getInt("dialogColor", defColor), false);
                 }
             }
 
@@ -579,7 +619,7 @@ public class ThemingActivity extends BaseFragment {
             else if ( i == resetThemeRow || i == saveThemeRow || i == applyThemeRow) {
                 return 3;
             }
-            else if ( i == themeColorRow) {
+            else if ( i == themeColorRow || i == dialogColorRow) {
                 return 4;
             }
             else {

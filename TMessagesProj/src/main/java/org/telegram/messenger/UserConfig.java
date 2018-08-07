@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.3.2.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.messenger;
@@ -12,14 +12,15 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
 
-import org.telegram.android.MessagesStorage;
+import org.telegram.tgnet.SerializedData;
+import org.telegram.tgnet.TLRPC;
 
 import java.io.File;
 
 public class UserConfig {
+
     private static TLRPC.User currentUser;
     public static boolean registeredForPush = false;
-    public static boolean registeredForInternalPush = false;
     public static String pushString = "";
     public static int lastSendMessageId = -210000;
     public static int lastLocalId = -210000;
@@ -30,13 +31,23 @@ public class UserConfig {
     private final static Object sync = new Object();
     public static boolean saveIncomingPhotos = false;
     public static int contactsVersion = 1;
-    public static boolean waitingForPasswordEnter = false;
     public static String passcodeHash = "";
+    public static byte[] passcodeSalt = new byte[0];
     public static boolean appLocked = false;
     public static int passcodeType = 0;
     public static int autoLockIn = 60 * 60;
     public static int lastPauseTime = 0;
     public static boolean isWaitingForPasscodeEnter = false;
+    public static boolean useFingerprint = true;
+    public static String lastUpdateVersion;
+    public static int lastContactsSyncTime;
+
+    public static int migrateOffsetId = -1;
+    public static int migrateOffsetDate = -1;
+    public static int migrateOffsetUserId = -1;
+    public static int migrateOffsetChatId = -1;
+    public static int migrateOffsetChannelId = -1;
+    public static long migrateOffsetAccess = -1;
 
     public static int getNewMessageId() {
         int id;
@@ -57,7 +68,7 @@ public class UserConfig {
                 SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
                 SharedPreferences.Editor editor = preferences.edit();
                 editor.putBoolean("registeredForPush", registeredForPush);
-                editor.putString("pushString", pushString);
+                editor.putString("pushString2", pushString);
                 editor.putInt("lastSendMessageId", lastSendMessageId);
                 editor.putInt("lastLocalId", lastLocalId);
                 editor.putString("contactsHash", contactsHash);
@@ -65,14 +76,25 @@ public class UserConfig {
                 editor.putBoolean("saveIncomingPhotos", saveIncomingPhotos);
                 editor.putInt("contactsVersion", contactsVersion);
                 editor.putInt("lastBroadcastId", lastBroadcastId);
-                editor.putBoolean("registeredForInternalPush", registeredForInternalPush);
                 editor.putBoolean("blockedUsersLoaded", blockedUsersLoaded);
-                editor.putBoolean("waitingForPasswordEnter", waitingForPasswordEnter);
                 editor.putString("passcodeHash1", passcodeHash);
+                editor.putString("passcodeSalt", passcodeSalt.length > 0 ? Base64.encodeToString(passcodeSalt, Base64.DEFAULT) : "");
                 editor.putBoolean("appLocked", appLocked);
                 editor.putInt("passcodeType", passcodeType);
                 editor.putInt("autoLockIn", autoLockIn);
                 editor.putInt("lastPauseTime", lastPauseTime);
+                editor.putString("lastUpdateVersion2", lastUpdateVersion);
+                editor.putInt("lastContactsSyncTime", lastContactsSyncTime);
+                editor.putBoolean("useFingerprint", useFingerprint);
+
+                editor.putInt("migrateOffsetId", migrateOffsetId);
+                if (migrateOffsetId != -1) {
+                    editor.putInt("migrateOffsetDate", migrateOffsetDate);
+                    editor.putInt("migrateOffsetUserId", migrateOffsetUserId);
+                    editor.putInt("migrateOffsetChatId", migrateOffsetChatId);
+                    editor.putInt("migrateOffsetChannelId", migrateOffsetChannelId);
+                    editor.putLong("migrateOffsetAccess", migrateOffsetAccess);
+                }
 
                 if (currentUser != null) {
                     if (withFile) {
@@ -85,6 +107,7 @@ public class UserConfig {
                 } else {
                     editor.remove("user");
                 }
+
                 editor.commit();
                 if (oldFile != null) {
                     oldFile.delete();
@@ -98,18 +121,6 @@ public class UserConfig {
     public static boolean isClientActivated() {
         synchronized (sync) {
             return currentUser != null;
-        }
-    }
-
-    public static boolean isWaitingForPasswordEnter() {
-        synchronized (sync) {
-            return waitingForPasswordEnter;
-        }
-    }
-
-    public static void setWaitingForPasswordEnter(boolean value) {
-        synchronized (sync) {
-            waitingForPasswordEnter = value;
         }
     }
 
@@ -133,32 +144,32 @@ public class UserConfig {
 
     public static void loadConfig() {
         synchronized (sync) {
-            final File configFile = new File(ApplicationLoader.applicationContext.getFilesDir(), "user.dat");
+            final File configFile = new File(ApplicationLoader.getFilesDirFixed(), "user.dat");
             if (configFile.exists()) {
                 try {
                     SerializedData data = new SerializedData(configFile);
-                    int ver = data.readInt32();
+                    int ver = data.readInt32(false);
                     if (ver == 1) {
-                        int constructor = data.readInt32();
-                        currentUser = (TLRPC.TL_userSelf)TLClassStore.Instance().TLdeserialize(data, constructor);
-                        MessagesStorage.lastDateValue = data.readInt32();
-                        MessagesStorage.lastPtsValue = data.readInt32();
-                        MessagesStorage.lastSeqValue = data.readInt32();
-                        registeredForPush = data.readBool();
-                        pushString = data.readString();
-                        lastSendMessageId = data.readInt32();
-                        lastLocalId = data.readInt32();
-                        contactsHash = data.readString();
-                        importHash = data.readString();
-                        saveIncomingPhotos = data.readBool();
+                        int constructor = data.readInt32(false);
+                        currentUser = TLRPC.User.TLdeserialize(data, constructor, false);
+                        MessagesStorage.lastDateValue = data.readInt32(false);
+                        MessagesStorage.lastPtsValue = data.readInt32(false);
+                        MessagesStorage.lastSeqValue = data.readInt32(false);
+                        registeredForPush = data.readBool(false);
+                        pushString = data.readString(false);
+                        lastSendMessageId = data.readInt32(false);
+                        lastLocalId = data.readInt32(false);
+                        contactsHash = data.readString(false);
+                        importHash = data.readString(false);
+                        saveIncomingPhotos = data.readBool(false);
                         contactsVersion = 0;
-                        MessagesStorage.lastQtsValue = data.readInt32();
-                        MessagesStorage.lastSecretVersion = data.readInt32();
-                        int val = data.readInt32();
+                        MessagesStorage.lastQtsValue = data.readInt32(false);
+                        MessagesStorage.lastSecretVersion = data.readInt32(false);
+                        int val = data.readInt32(false);
                         if (val == 1) {
-                            MessagesStorage.secretPBytes = data.readByteArray();
+                            MessagesStorage.secretPBytes = data.readByteArray(false);
                         }
-                        MessagesStorage.secretG = data.readInt32();
+                        MessagesStorage.secretG = data.readInt32(false);
                         Utilities.stageQueue.postRunnable(new Runnable() {
                             @Override
                             public void run() {
@@ -166,12 +177,12 @@ public class UserConfig {
                             }
                         });
                     } else if (ver == 2) {
-                        int constructor = data.readInt32();
-                        currentUser = (TLRPC.TL_userSelf)TLClassStore.Instance().TLdeserialize(data, constructor);
+                        int constructor = data.readInt32(false);
+                        currentUser = TLRPC.User.TLdeserialize(data, constructor, false);
 
                         SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
                         registeredForPush = preferences.getBoolean("registeredForPush", false);
-                        pushString = preferences.getString("pushString", "");
+                        pushString = preferences.getString("pushString2", "");
                         lastSendMessageId = preferences.getInt("lastSendMessageId", -210000);
                         lastLocalId = preferences.getInt("lastLocalId", -210000);
                         contactsHash = preferences.getString("contactsHash", "");
@@ -198,7 +209,7 @@ public class UserConfig {
             } else {
                 SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
                 registeredForPush = preferences.getBoolean("registeredForPush", false);
-                pushString = preferences.getString("pushString", "");
+                pushString = preferences.getString("pushString2", "");
                 lastSendMessageId = preferences.getInt("lastSendMessageId", -210000);
                 lastLocalId = preferences.getInt("lastLocalId", -210000);
                 contactsHash = preferences.getString("contactsHash", "");
@@ -206,32 +217,82 @@ public class UserConfig {
                 saveIncomingPhotos = preferences.getBoolean("saveIncomingPhotos", false);
                 contactsVersion = preferences.getInt("contactsVersion", 0);
                 lastBroadcastId = preferences.getInt("lastBroadcastId", -1);
-                registeredForInternalPush = preferences.getBoolean("registeredForInternalPush", false);
                 blockedUsersLoaded = preferences.getBoolean("blockedUsersLoaded", false);
-                waitingForPasswordEnter = preferences.getBoolean("waitingForPasswordEnter", false);
                 passcodeHash = preferences.getString("passcodeHash1", "");
                 appLocked = preferences.getBoolean("appLocked", false);
                 passcodeType = preferences.getInt("passcodeType", 0);
                 autoLockIn = preferences.getInt("autoLockIn", 60 * 60);
                 lastPauseTime = preferences.getInt("lastPauseTime", 0);
+                useFingerprint = preferences.getBoolean("useFingerprint", true);
+                lastUpdateVersion = preferences.getString("lastUpdateVersion2", "3.5");
+                lastContactsSyncTime = preferences.getInt("lastContactsSyncTime", (int) (System.currentTimeMillis() / 1000) - 23 * 60 * 60);
+
+                migrateOffsetId = preferences.getInt("migrateOffsetId", 0);
+                if (migrateOffsetId != -1) {
+                    migrateOffsetDate = preferences.getInt("migrateOffsetDate", 0);
+                    migrateOffsetUserId = preferences.getInt("migrateOffsetUserId", 0);
+                    migrateOffsetChatId = preferences.getInt("migrateOffsetChatId", 0);
+                    migrateOffsetChannelId = preferences.getInt("migrateOffsetChannelId", 0);
+                    migrateOffsetAccess = preferences.getLong("migrateOffsetAccess", 0);
+                }
+
                 String user = preferences.getString("user", null);
                 if (user != null) {
                     byte[] userBytes = Base64.decode(user, Base64.DEFAULT);
                     if (userBytes != null) {
                         SerializedData data = new SerializedData(userBytes);
-                        currentUser = (TLRPC.TL_userSelf)TLClassStore.Instance().TLdeserialize(data, data.readInt32());
+                        currentUser = TLRPC.User.TLdeserialize(data, data.readInt32(false), false);
                         data.cleanup();
                     }
+                }
+                String passcodeSaltString = preferences.getString("passcodeSalt", "");
+                if (passcodeSaltString.length() > 0) {
+                    passcodeSalt = Base64.decode(passcodeSaltString, Base64.DEFAULT);
+                } else {
+                    passcodeSalt = new byte[0];
                 }
             }
         }
     }
 
+    public static boolean checkPasscode(String passcode) {
+        if (passcodeSalt.length == 0) {
+            boolean result = Utilities.MD5(passcode).equals(passcodeHash);
+            if (result) {
+                try {
+                    passcodeSalt = new byte[16];
+                    Utilities.random.nextBytes(passcodeSalt);
+                    byte[] passcodeBytes = passcode.getBytes("UTF-8");
+                    byte[] bytes = new byte[32 + passcodeBytes.length];
+                    System.arraycopy(passcodeSalt, 0, bytes, 0, 16);
+                    System.arraycopy(passcodeBytes, 0, bytes, 16, passcodeBytes.length);
+                    System.arraycopy(passcodeSalt, 0, bytes, passcodeBytes.length + 16, 16);
+                    passcodeHash = Utilities.bytesToHex(Utilities.computeSHA256(bytes, 0, bytes.length));
+                    saveConfig(false);
+                } catch (Exception e) {
+                    FileLog.e("tmessages", e);
+                }
+            }
+            return result;
+        } else {
+            try {
+                byte[] passcodeBytes = passcode.getBytes("UTF-8");
+                byte[] bytes = new byte[32 + passcodeBytes.length];
+                System.arraycopy(passcodeSalt, 0, bytes, 0, 16);
+                System.arraycopy(passcodeBytes, 0, bytes, 16, passcodeBytes.length);
+                System.arraycopy(passcodeSalt, 0, bytes, passcodeBytes.length + 16, 16);
+                String hash = Utilities.bytesToHex(Utilities.computeSHA256(bytes, 0, bytes.length));
+                return passcodeHash.equals(hash);
+            } catch (Exception e) {
+                FileLog.e("tmessages", e);
+            }
+        }
+        return false;
+    }
+
     public static void clearConfig() {
         currentUser = null;
-        registeredForInternalPush = false;
         registeredForPush = false;
-        waitingForPasswordEnter = false;
         contactsHash = "";
         importHash = "";
         lastSendMessageId = -210000;
@@ -239,12 +300,22 @@ public class UserConfig {
         lastBroadcastId = -1;
         saveIncomingPhotos = false;
         blockedUsersLoaded = false;
+        migrateOffsetId = -1;
+        migrateOffsetDate = -1;
+        migrateOffsetUserId = -1;
+        migrateOffsetChatId = -1;
+        migrateOffsetChannelId = -1;
+        migrateOffsetAccess = -1;
         appLocked = false;
         passcodeType = 0;
         passcodeHash = "";
+        passcodeSalt = new byte[0];
         autoLockIn = 60 * 60;
         lastPauseTime = 0;
+        useFingerprint = true;
         isWaitingForPasscodeEnter = false;
+        lastUpdateVersion = BuildVars.BUILD_VERSION_STRING;
+        lastContactsSyncTime = (int) (System.currentTimeMillis() / 1000) - 23 * 60 * 60;
         saveConfig(true);
     }
 }

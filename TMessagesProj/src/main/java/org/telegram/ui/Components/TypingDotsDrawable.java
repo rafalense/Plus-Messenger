@@ -1,22 +1,26 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
 
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.view.animation.DecelerateInterpolator;
 
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.ui.ActionBar.Theme;
 
 public class TypingDotsDrawable extends Drawable {
+
     private boolean isChat = false;
     private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float[] scales = new float[3];
@@ -28,7 +32,9 @@ public class TypingDotsDrawable extends Drawable {
 
     public TypingDotsDrawable() {
         super();
-        paint.setColor(0xffd7e8f7);
+        //paint.setColor(Theme.ACTION_BAR_SUBTITLE_COLOR);
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        paint.setColor(themePrefs.getInt("chatTypingColor",themePrefs.getInt("chatStatusColor", AndroidUtilities.getIntDarkerColor("themeColor", -0x40))));
     }
 
     public void setIsChat(boolean value) {
@@ -87,11 +93,11 @@ public class TypingDotsDrawable extends Drawable {
 
     @Override
     public void draw(Canvas canvas) {
-        int y = 0;
+        int y;
         if (isChat) {
-            y = AndroidUtilities.dp(6);
+            y = AndroidUtilities.dp(8.3f) + getBounds().top;
         } else {
-            y = AndroidUtilities.dp(7);
+            y = AndroidUtilities.dp(9) + getBounds().top;
         }
         canvas.drawCircle(AndroidUtilities.dp(3), y, scales[0] * AndroidUtilities.density, paint);
         canvas.drawCircle(AndroidUtilities.dp(9), y, scales[1] * AndroidUtilities.density, paint);
@@ -123,6 +129,6 @@ public class TypingDotsDrawable extends Drawable {
 
     @Override
     public int getIntrinsicHeight() {
-        return AndroidUtilities.dp(10);
+        return AndroidUtilities.dp(18);
     }
 }

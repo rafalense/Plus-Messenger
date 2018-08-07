@@ -40,7 +40,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.telegram.messenger.R;
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
 
 import java.util.Locale;
 
@@ -112,15 +112,15 @@ public class NumberPicker extends LinearLayout {
     }
 
     public interface OnScrollListener {
-        public static int SCROLL_STATE_IDLE = 0;
-        public static int SCROLL_STATE_TOUCH_SCROLL = 1;
-        public static int SCROLL_STATE_FLING = 2;
+        int SCROLL_STATE_IDLE = 0;
+        int SCROLL_STATE_TOUCH_SCROLL = 1;
+        int SCROLL_STATE_FLING = 2;
 
-        public void onScrollStateChange(NumberPicker view, int scrollState);
+        void onScrollStateChange(NumberPicker view, int scrollState);
     }
 
     public interface Formatter {
-        public String format(int value);
+        String format(int value);
     }
 
     private void init() {
@@ -537,7 +537,6 @@ public class NumberPicker extends LinearLayout {
             }
             maxTextWidth = (int) (numberOfDigits * maxDigitWidth);
         } else {
-            final int valueCount = mDisplayedValues.length;
             for (String mDisplayedValue : mDisplayedValues) {
                 final float textWidth = mSelectorWheelPaint.measureText(mDisplayedValue);
                 if (textWidth > maxTextWidth) {

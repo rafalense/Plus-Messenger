@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "242122694681",
+    "firebase_url": "https://r4dar-ea35e.firebaseio.com",
+    "project_id": "r4dar-ea35e",
+    "storage_bucket": "r4dar-ea35e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:242122694681:android:07fd9d68809c62b5",
+        "android_client_info": {
+          "package_name": "br.com.r4dar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "242122694681-rca3lhr8v6d68mfj5b02n5kat8585rlp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDh8ZgkOLBjO3B9ciFxgXAncjKZXGjRBvM"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

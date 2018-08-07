@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
@@ -21,7 +21,7 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
-import org.telegram.android.AndroidUtilities;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
 
@@ -29,6 +29,7 @@ import java.util.ArrayList;
 
 @TargetApi(10)
 public class VideoTimelineView extends View {
+
     private long videoLength = 0;
     private float progressLeft = 0;
     private float progressRight = 1;
@@ -39,7 +40,7 @@ public class VideoTimelineView extends View {
     private float pressDx = 0;
     private MediaMetadataRetriever mediaMetadataRetriever = null;
     private VideoTimelineViewDelegate delegate = null;
-    private ArrayList<Bitmap> frames = new ArrayList<Bitmap>();
+    private ArrayList<Bitmap> frames = new ArrayList<>();
     private AsyncTask<Integer, Integer, Bitmap> currentTask = null;
     private static final Object sync = new Object();
     private long frameTimeOffset = 0;
@@ -48,9 +49,9 @@ public class VideoTimelineView extends View {
     private int framesToLoad = 0;
     private Drawable pickDrawable = null;
 
-    public abstract interface VideoTimelineViewDelegate {
-        public void onLeftProgressChanged(float progress);
-        public void onRifhtProgressChanged(float progress);
+    public interface VideoTimelineViewDelegate {
+        void onLeftProgressChanged(float progress);
+        void onRifhtProgressChanged(float progress);
     }
 
     private void init(Context context) {
@@ -201,7 +202,6 @@ public class VideoTimelineView extends View {
                         int h = (int) (bitmap.getHeight() * scale);
                         Rect srcRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
                         Rect destRect = new Rect((frameWidth - w) / 2, (frameHeight - h) / 2, w, h);
-                        Paint paint = new Paint();
                         canvas.drawBitmap(bitmap, srcRect, destRect, null);
                         bitmap.recycle();
                         bitmap = result;

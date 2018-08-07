@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui;
@@ -14,29 +14,27 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.view.Gravity;
-import android.view.LayoutInflater;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.FrameLayout;
 import android.widget.ListView;
-import android.widget.Toast;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.android.ContactsController;
-import org.telegram.android.LocaleController;
-import org.telegram.android.MediaController;
-import org.telegram.android.MessagesController;
-import org.telegram.android.NotificationCenter;
+import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.ConnectionsManager;
+import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.FileLog;
+import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.RPCRequest;
-import org.telegram.messenger.TLObject;
-import org.telegram.messenger.TLRPC;
 import org.telegram.messenger.UserConfig;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.RequestDelegate;
+import org.telegram.tgnet.TLObject;
+import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.Adapters.BaseFragmentAdapter;
@@ -44,8 +42,11 @@ import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Components.LayoutHelper;
 
 import java.util.ArrayList;
+
+import static org.telegram.ui.Components.Glow.setEdgeGlowColor;
 
 public class PrivacySettingsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -54,16 +55,19 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
     private int privacySectionRow;
     private int blockedRow;
     private int lastSeenRow;
-    private int lastSeenDetailRow;
+    private int groupsRow;
+    private int groupsDetailRow;
     private int securitySectionRow;
-    private int terminateSessionsRow;
+    private int sessionsRow;
     private int passwordRow;
     private int passcodeRow;
-    private int terminateSessionsDetailRow;
+    private int sessionsDetailRow;
     private int deleteAccountSectionRow;
     private int deleteAccountRow;
     private int deleteAccountDetailRow;
-    private int hideMobileNumberRow;
+    private int secretSectionRow;
+    private int secretWebpageRow;
+    private int secretDetailRow;
     private int rowCount;
 
     @Override
@@ -74,18 +78,27 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
 
         rowCount = 0;
         privacySectionRow = rowCount++;
-        hideMobileNumberRow  = rowCount++;
         blockedRow = rowCount++;
         lastSeenRow = rowCount++;
-        lastSeenDetailRow = rowCount++;
+        groupsRow = rowCount++;
+        groupsDetailRow = rowCount++;
         securitySectionRow = rowCount++;
         passcodeRow = rowCount++;
-        terminateSessionsRow = rowCount++;
-        terminateSessionsDetailRow = rowCount++;
+        passwordRow = rowCount++;
+        sessionsRow = rowCount++;
+        sessionsDetailRow = rowCount++;
         deleteAccountSectionRow = rowCount++;
         deleteAccountRow = rowCount++;
         deleteAccountDetailRow = rowCount++;
-        passwordRow = -1;
+        if (MessagesController.getInstance().secretWebpagePreview != 1) {
+            secretSectionRow = rowCount++;
+            secretWebpageRow = rowCount++;
+            secretDetailRow = rowCount++;
+        } else {
+            secretSectionRow = -1;
+            secretWebpageRow = -1;
+            secretDetailRow = -1;
+        }
 
         NotificationCenter.getInstance().addObserver(this, NotificationCenter.privacyRulesUpdated);
 
@@ -99,8 +112,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
     }
 
     @Override
-    public View createView(LayoutInflater inflater) {
-        if (fragmentView == null) {
+    public View createView(Context context) {
             actionBar.setBackButtonImage(R.drawable.ic_ab_back);
             actionBar.setAllowOverlayTitle(true);
             actionBar.setTitle(LocaleController.getString("PrivacySettings", R.string.PrivacySettings));
@@ -113,154 +125,113 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 }
             });
 
-            listAdapter = new ListAdapter(getParentActivity());
+        listAdapter = new ListAdapter(context);
 
-            fragmentView = new FrameLayout(getParentActivity());
+        fragmentView = new FrameLayout(context);
             FrameLayout frameLayout = (FrameLayout) fragmentView;
             frameLayout.setBackgroundColor(0xfff0f0f0);
-
-            ListView listView = new ListView(getParentActivity());
+        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int def = preferences.getInt("themeColor", AndroidUtilities.defColor);
+        int hColor = preferences.getInt("prefHeaderColor", def);
+        int bgColor = preferences.getInt("prefBGColor", 0xffffffff);
+        ListView listView = new ListView(context);
+        setEdgeGlowColor(listView, hColor);
+        listView.setBackgroundColor(bgColor);
             listView.setDivider(null);
             listView.setDividerHeight(0);
             listView.setVerticalScrollBarEnabled(false);
             listView.setDrawSelectorOnTop(true);
-            frameLayout.addView(listView);
-            FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) listView.getLayoutParams();
-            layoutParams.width = FrameLayout.LayoutParams.MATCH_PARENT;
-            layoutParams.height = FrameLayout.LayoutParams.MATCH_PARENT;
-            layoutParams.gravity = Gravity.TOP;
-            listView.setLayoutParams(layoutParams);
+        frameLayout.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
             listView.setAdapter(listAdapter);
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, final int i, long l) {
                     if (i == blockedRow) {
                         presentFragment(new BlockedUsersActivity());
-                    } else if (i == terminateSessionsRow) {
+                } else if (i == sessionsRow) {
+                    presentFragment(new SessionsActivity());
+                } else if (i == deleteAccountRow) {
                         if (getParentActivity() == null) {
                             return;
                         }
                         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                        builder.setMessage(LocaleController.getString("AreYouSureSessions", R.string.AreYouSureSessions));
-                        builder.setTitle(LocaleController.getString("AppName", R.string.AppName));
-                        builder.setPositiveButton(LocaleController.getString("OK", R.string.OK), new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialogInterface, int i) {
-                                TLRPC.TL_auth_resetAuthorizations req = new TLRPC.TL_auth_resetAuthorizations();
-                                ConnectionsManager.getInstance().performRpc(req, new RPCRequest.RPCRequestDelegate() {
-                                    @Override
-                                    public void run(final TLObject response, final TLRPC.TL_error error) {
-                                        AndroidUtilities.runOnUIThread(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                if (getParentActivity() == null) {
-                                                    return;
-                                                }
-                                                if (error == null && response instanceof TLRPC.TL_boolTrue) {
-                                                    Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("TerminateAllSessions", R.string.TerminateAllSessions), Toast.LENGTH_SHORT);
-                                                    toast.show();
-                                                } else {
-                                                    Toast toast = Toast.makeText(getParentActivity(), LocaleController.getString("UnknownError", R.string.UnknownError), Toast.LENGTH_SHORT);
-                                                    toast.show();
-                                                }
-                                            }
-                                        });
-                                        UserConfig.registeredForPush = false;
-                                        UserConfig.registeredForInternalPush = false;
-                                        UserConfig.saveConfig(false);
-                                        MessagesController.getInstance().registerForPush(UserConfig.pushString);
-                                        ConnectionsManager.getInstance().initPushConnection();
-                                    }
-                                });
+                    builder.setTitle(LocaleController.getString("DeleteAccountTitle", R.string.DeleteAccountTitle));
+                    builder.setItems(new CharSequence[]{
+                            LocaleController.formatPluralString("Months", 1),
+                            LocaleController.formatPluralString("Months", 3),
+                            LocaleController.formatPluralString("Months", 6),
+                            LocaleController.formatPluralString("Years", 1)
+                    }, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            int value = 0;
+                            if (which == 0) {
+                                value = 30;
+                            } else if (which == 1) {
+                                value = 90;
+                            } else if (which == 2) {
+                                value = 182;
+                            } else if (which == 3) {
+                                value = 365;
                             }
-                        });
-                        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                        showAlertDialog(builder);
-                    } else if (i == deleteAccountRow) {
-                        if (getParentActivity() == null) {
-                            return;
-                        }
-                        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                        builder.setTitle(LocaleController.getString("DeleteAccountTitle", R.string.DeleteAccountTitle));
-                        builder.setItems(new CharSequence[] {
-                                LocaleController.formatPluralString("Months", 1),
-                                LocaleController.formatPluralString("Months", 3),
-                                LocaleController.formatPluralString("Months", 6),
-                                LocaleController.formatPluralString("Years", 1)
-                        }, new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                int value = 0;
-                                if (which == 0) {
-                                    value = 30;
-                                } else if (which == 1) {
-                                    value = 90;
-                                } else if (which == 2) {
-                                    value = 182;
-                                } else if (which == 3) {
-                                    value = 365;
-                                }
-                                final ProgressDialog progressDialog = new ProgressDialog(getParentActivity());
-                                progressDialog.setMessage(LocaleController.getString("Loading", R.string.Loading));
-                                progressDialog.setCanceledOnTouchOutside(false);
-                                progressDialog.setCancelable(false);
-                                progressDialog.show();
+                            final ProgressDialog progressDialog = new ProgressDialog(getParentActivity());
+                            progressDialog.setMessage(LocaleController.getString("Loading", R.string.Loading));
+                            progressDialog.setCanceledOnTouchOutside(false);
+                            progressDialog.setCancelable(false);
+                            progressDialog.show();
 
-                                final TLRPC.TL_account_setAccountTTL req = new TLRPC.TL_account_setAccountTTL();
-                                req.ttl = new TLRPC.TL_accountDaysTTL();
-                                req.ttl.days = value;
-                                ConnectionsManager.getInstance().performRpc(req, new RPCRequest.RPCRequestDelegate() {
+                            final TLRPC.TL_account_setAccountTTL req = new TLRPC.TL_account_setAccountTTL();
+                            req.ttl = new TLRPC.TL_accountDaysTTL();
+                            req.ttl.days = value;
+                            ConnectionsManager.getInstance().sendRequest(req, new RequestDelegate() {
                                     @Override
                                     public void run(final TLObject response, final TLRPC.TL_error error) {
                                         AndroidUtilities.runOnUIThread(new Runnable() {
                                             @Override
                                             public void run() {
-                                                try {
-                                                    progressDialog.dismiss();
-                                                } catch (Exception e) {
-                                                    FileLog.e("tmessages", e);
-                                                }
-                                                if (response instanceof TLRPC.TL_boolTrue) {
-                                                    ContactsController.getInstance().setDeleteAccountTTL(req.ttl.days);
-                                                    listAdapter.notifyDataSetChanged();
-                                                }
+                                            try {
+                                                progressDialog.dismiss();
+                                            } catch (Exception e) {
+                                                FileLog.e("tmessages", e);
                                             }
-                                        });
+                                            if (response instanceof TLRPC.TL_boolTrue) {
+                                                ContactsController.getInstance().setDeleteAccountTTL(req.ttl.days);
+                                                listAdapter.notifyDataSetChanged();
+                                            }
+                                                }
+                                    });
                                     }
                                 });
                             }
                         });
                         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
-                        showAlertDialog(builder);
+                    showDialog(builder.create());
                     } else if (i == lastSeenRow) {
-                        presentFragment(new LastSeenActivity());
+                    presentFragment(new PrivacyControlActivity(false));
+                } else if (i == groupsRow) {
+                    presentFragment(new PrivacyControlActivity(true));
                     } else if (i == passwordRow) {
-                        presentFragment(new AccountPasswordActivity(0));
+                    presentFragment(new TwoStepVerificationActivity(0));
                     } else if (i == passcodeRow) {
                         if (UserConfig.passcodeHash.length() > 0) {
                             presentFragment(new PasscodeActivity(2));
                         } else {
                             presentFragment(new PasscodeActivity(0));
                         }
-                    } else if (i == hideMobileNumberRow) {
-                        SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-                        boolean scr = preferences.getBoolean("hideMobile", false);
-                        SharedPreferences.Editor editor = preferences.edit();
-                        editor.putBoolean("hideMobile", !scr);
-                        editor.commit();
-                        //AndroidUtilities.hideMobile = !scr;
-                        if (view instanceof TextCheckCell) {
-                            ((TextCheckCell) view).setChecked(!scr);
-                        }
+                } else if (i == secretWebpageRow) {
+                    if (MessagesController.getInstance().secretWebpagePreview == 1) {
+                        MessagesController.getInstance().secretWebpagePreview = 0;
+                    } else {
+                        MessagesController.getInstance().secretWebpagePreview = 1;
+                    }
+                    ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE).edit().putInt("secretWebpage2", MessagesController.getInstance().secretWebpagePreview).commit();
+                    if (view instanceof TextCheckCell) {
+                        ((TextCheckCell) view).setChecked(MessagesController.getInstance().secretWebpagePreview == 1);
+                    }
                     }
                 }
             });
-        } else {
-            ViewGroup parent = (ViewGroup)fragmentView.getParent();
-            if (parent != null) {
-                parent.removeView(fragmentView);
-            }
-        }
+        updateTheme();
         return fragmentView;
     }
 
@@ -273,15 +244,16 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         }
     }
 
-    private String formatRulesString() {
-        ArrayList<TLRPC.PrivacyRule> privacyRules = ContactsController.getInstance().getPrivacyRules();
+    private String formatRulesString(boolean isGroup) {
+        ArrayList<TLRPC.PrivacyRule> privacyRules = ContactsController.getInstance().getPrivacyRules(isGroup);
         if (privacyRules.size() == 0) {
             return LocaleController.getString("LastSeenNobody", R.string.LastSeenNobody);
         }
         int type = -1;
         int plus = 0;
         int minus = 0;
-        for (TLRPC.PrivacyRule rule : privacyRules) {
+        for (int a = 0; a < privacyRules.size(); a++) {
+            TLRPC.PrivacyRule rule = privacyRules.get(a);
             if (rule instanceof TLRPC.TL_privacyValueAllowUsers) {
                 plus += rule.users.size();
             } else if (rule instanceof TLRPC.TL_privacyValueDisallowUsers) {
@@ -308,11 +280,11 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     return LocaleController.formatString("LastSeenContactsMinusPlus", R.string.LastSeenContactsMinusPlus, minus, plus);
                 } else if (minus != 0) {
                     return LocaleController.formatString("LastSeenContactsMinus", R.string.LastSeenContactsMinus, minus);
-                } else if (plus != 0) {
+                } else {
                     return LocaleController.formatString("LastSeenContactsPlus", R.string.LastSeenContactsPlus, plus);
                 }
             }
-        } else if (type == 1 || type == -1 && plus > 0) {
+        } else if (type == 1 || plus > 0) {
             if (plus == 0) {
                 return LocaleController.getString("LastSeenNobody", R.string.LastSeenNobody);
             } else {
@@ -330,6 +302,17 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         }
     }
 
+    private void updateTheme(){
+        SharedPreferences themePrefs = ApplicationLoader.applicationContext.getSharedPreferences(AndroidUtilities.THEME_PREFS, AndroidUtilities.THEME_PREFS_MODE);
+        int def = themePrefs.getInt("themeColor", AndroidUtilities.defColor);
+        actionBar.setBackgroundColor(themePrefs.getInt("prefHeaderColor", def));
+        actionBar.setTitleColor(themePrefs.getInt("prefHeaderTitleColor", 0xffffffff));
+
+        Drawable back = getParentActivity().getResources().getDrawable(R.drawable.ic_ab_back);
+        back.setColorFilter(themePrefs.getInt("prefHeaderIconsColor", 0xffffffff), PorterDuff.Mode.MULTIPLY);
+        actionBar.setBackButtonDrawable(back);
+    }
+
     private class ListAdapter extends BaseFragmentAdapter {
         private Context mContext;
 
@@ -344,8 +327,10 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
 
         @Override
         public boolean isEnabled(int i) {
-            return i == passcodeRow || i == passwordRow || i == blockedRow || i == terminateSessionsRow || i == lastSeenRow && !ContactsController.getInstance().getLoadingLastSeenInfo() || i == deleteAccountRow && !ContactsController.getInstance().getLoadingDeleteInfo() ||
-                   i == hideMobileNumberRow;
+            return i == passcodeRow || i == passwordRow || i == blockedRow || i == sessionsRow || i == secretWebpageRow ||
+                    i == groupsRow && !ContactsController.getInstance().getLoadingGroupInfo() ||
+                    i == lastSeenRow && !ContactsController.getInstance().getLoadingLastSeenInfo() ||
+                    i == deleteAccountRow && !ContactsController.getInstance().getLoadingDeleteInfo();
         }
 
         @Override
@@ -379,10 +364,10 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 TextSettingsCell textCell = (TextSettingsCell) view;
                 if (i == blockedRow) {
                     textCell.setText(LocaleController.getString("BlockedUsers", R.string.BlockedUsers), true);
-                } else if (i == terminateSessionsRow) {
-                    textCell.setText(LocaleController.getString("TerminateAllSessions", R.string.TerminateAllSessions), false);
+                } else if (i == sessionsRow) {
+                    textCell.setText(LocaleController.getString("SessionsTitle", R.string.SessionsTitle), false);
                 } else if (i == passwordRow) {
-                    textCell.setText(LocaleController.getString("Password", R.string.Password), true);
+                    textCell.setText(LocaleController.getString("TwoStepVerification", R.string.TwoStepVerification), true);
                 } else if (i == passcodeRow) {
                     textCell.setText(LocaleController.getString("Passcode", R.string.Passcode), true);
                 } else if (i == lastSeenRow) {
@@ -390,9 +375,17 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     if (ContactsController.getInstance().getLoadingLastSeenInfo()) {
                         value = LocaleController.getString("Loading", R.string.Loading);
                     } else {
-                        value = formatRulesString();
+                        value = formatRulesString(false);
                     }
-                    textCell.setTextAndValue(LocaleController.getString("PrivacyLastSeen", R.string.PrivacyLastSeen), value, false);
+                    textCell.setTextAndValue(LocaleController.getString("PrivacyLastSeen", R.string.PrivacyLastSeen), value, true);
+                } else if (i == groupsRow) {
+                    String value;
+                    if (ContactsController.getInstance().getLoadingGroupInfo()) {
+                        value = LocaleController.getString("Loading", R.string.Loading);
+                    } else {
+                        value = formatRulesString(true);
+                    }
+                    textCell.setTextAndValue(LocaleController.getString("GroupsAndChannels", R.string.GroupsAndChannels), value, false);
                 }  else if (i == deleteAccountRow) {
                     String value;
                     if (ContactsController.getInstance().getLoadingDeleteInfo()) {
@@ -415,13 +408,16 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 }
                 if (i == deleteAccountDetailRow) {
                     ((TextInfoPrivacyCell) view).setText(LocaleController.getString("DeleteAccountHelp", R.string.DeleteAccountHelp));
+                    view.setBackgroundResource(secretSectionRow == -1 ? R.drawable.greydivider_bottom : R.drawable.greydivider);
+                } else if (i == groupsDetailRow) {
+                    ((TextInfoPrivacyCell) view).setText(LocaleController.getString("GroupsAndChannelsHelp", R.string.GroupsAndChannelsHelp));
+                    view.setBackgroundResource(R.drawable.greydivider);
+                } else if (i == sessionsDetailRow) {
+                    ((TextInfoPrivacyCell) view).setText(LocaleController.getString("SessionsInfo", R.string.SessionsInfo));
+                    view.setBackgroundResource(R.drawable.greydivider);
+                } else if (i == secretDetailRow) {
+                    ((TextInfoPrivacyCell) view).setText("");
                     view.setBackgroundResource(R.drawable.greydivider_bottom);
-                } else if (i == lastSeenDetailRow) {
-                    ((TextInfoPrivacyCell) view).setText(LocaleController.getString("LastSeenHelp", R.string.LastSeenHelp));
-                    view.setBackgroundResource(R.drawable.greydivider);
-                } else if (i == terminateSessionsDetailRow) {
-                    ((TextInfoPrivacyCell) view).setText(LocaleController.getString("ClearOtherSessionsHelp", R.string.ClearOtherSessionsHelp));
-                    view.setBackgroundResource(R.drawable.greydivider);
                 }
             } else if (type == 2) {
                 if (view == null) {
@@ -434,17 +430,17 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     ((HeaderCell) view).setText(LocaleController.getString("SecurityTitle", R.string.SecurityTitle));
                 } else if (i == deleteAccountSectionRow) {
                     ((HeaderCell) view).setText(LocaleController.getString("DeleteAccountTitle", R.string.DeleteAccountTitle));
+                } else if (i == secretSectionRow) {
+                    ((HeaderCell) view).setText(LocaleController.getString("SecretChat", R.string.SecretChat));
                 }
-            }  else if (type == 3) {
+            } else if (type == 3) {
                 if (view == null) {
                     view = new TextCheckCell(mContext);
                     view.setBackgroundColor(0xffffffff);
                 }
                 TextCheckCell textCell = (TextCheckCell) view;
-
-                SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-                if (i == hideMobileNumberRow) {
-                    textCell.setTextAndCheck(LocaleController.getString("HideMobile", R.string.HideMobile), preferences.getBoolean("hideMobile", false), false);
+                if (i == secretWebpageRow) {
+                    textCell.setTextAndCheck(LocaleController.getString("SecretWebPage", R.string.SecretWebPage), MessagesController.getInstance().secretWebpagePreview == 1, true);
                 }
             }
             return view;
@@ -452,13 +448,13 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
 
         @Override
         public int getItemViewType(int i) {
-            if (i == lastSeenRow || i == blockedRow || i == deleteAccountRow || i == terminateSessionsRow || i == passwordRow || i == passcodeRow) {
+            if (i == lastSeenRow || i == blockedRow || i == deleteAccountRow || i == sessionsRow || i == passwordRow || i == passcodeRow || i == groupsRow) {
                 return 0;
-            } else if (i == deleteAccountDetailRow || i == lastSeenDetailRow || i == terminateSessionsDetailRow) {
+            } else if (i == deleteAccountDetailRow || i == groupsDetailRow || i == sessionsDetailRow || i == secretDetailRow) {
                 return 1;
-            } else if (i == securitySectionRow || i == deleteAccountSectionRow || i == privacySectionRow ) {
+            } else if (i == securitySectionRow || i == deleteAccountSectionRow || i == privacySectionRow || i == secretSectionRow) {
                 return 2;
-            }  else if (i == hideMobileNumberRow) {
+            } else if (i == secretWebpageRow) {
                 return 3;
             }
             return 0;

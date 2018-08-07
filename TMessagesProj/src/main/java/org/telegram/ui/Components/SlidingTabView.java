@@ -1,9 +1,9 @@
 /*
- * This is the source code of Telegram for Android v. 1.7.x.
+ * This is the source code of Telegram for Android v. 3.x.x.
  * It is licensed under GNU GPL v. 2 or later.
  * You should have received a copy of the license in this archive (see LICENSE).
  *
- * Copyright Nikolai Kudashov, 2013-2014.
+ * Copyright Nikolai Kudashov, 2013-2016.
  */
 
 package org.telegram.ui.Components;
@@ -12,7 +12,6 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -20,13 +19,13 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import org.telegram.android.AndroidUtilities;
-import org.telegram.messenger.R;
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.ui.ActionBar.Theme;
 
 public class SlidingTabView extends LinearLayout {
 
-    public static interface SlidingTabViewDelegate {
-        public abstract void didSelectTab(int tab);
+    public interface SlidingTabViewDelegate {
+        void didSelectTab(int tab);
     }
 
     private SlidingTabViewDelegate delegate;
@@ -41,31 +40,13 @@ public class SlidingTabView extends LinearLayout {
     private float startAnimationX = 0;
     private DecelerateInterpolator interpolator;
 
-    private void init() {
+    public SlidingTabView(Context context) {
+        super(context);
         setOrientation(HORIZONTAL);
         setWeightSum(100);
         paint.setColor(0xffffffff);
+        setWillNotDraw(false);
         interpolator = new DecelerateInterpolator();
-    }
-
-    public SlidingTabView(Context context) {
-        super(context);
-        init();
-    }
-
-    public SlidingTabView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
-    }
-
-    public SlidingTabView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
-    }
-
-    public SlidingTabView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-        super(context, attrs, defStyleAttr, defStyleRes);
-        init();
     }
 
     public void addTextTab(final int position, String title) {
@@ -77,7 +58,7 @@ public class SlidingTabView extends LinearLayout {
         tab.setTextColor(0xffffffff);
         tab.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         tab.setTypeface(Typeface.DEFAULT_BOLD);
-        tab.setBackgroundResource(R.drawable.bar_selector_picker);
+        tab.setBackgroundDrawable(Theme.createBarSelectorDrawable(Theme.ACTION_BAR_PICKER_SELECTOR_COLOR, false));
 
         tab.setOnClickListener(new OnClickListener() {
             @Override
@@ -87,7 +68,7 @@ public class SlidingTabView extends LinearLayout {
         });
         addView(tab);
         LayoutParams layoutParams = (LayoutParams)tab.getLayoutParams();
-        layoutParams.height = LayoutParams.MATCH_PARENT;
+        layoutParams.height = LayoutHelper.MATCH_PARENT;
         layoutParams.width = 0;
         layoutParams.weight = 50;
         tab.setLayoutParams(layoutParams);

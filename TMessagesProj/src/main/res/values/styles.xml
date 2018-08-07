@@ -3,11 +3,18 @@
 
     <!--THEMES-->
 
-    <style name="Theme.TMessages.Start" parent="@android:style/Theme.Holo.Light">
+
+
+    <!--style name="Theme.TMessages.Start" parent="@android:style/Theme.Holo.Light">
         <item name="android:actionBarStyle">@style/ActionBar.Transparent.TMessages.Start</item>
         <item name="android:colorBackground">@android:color/white</item>
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:windowContentOverlay">@null</item>
+    </style-->
+
+    <style name="TransparentDialog" parent="@android:style/Theme.Translucent">
+        <item name="android:windowBackground">@color/transparent_black</item>
+        <item name="android:windowIsFloating">true</item>
     </style>
 
     <style name="Theme.TMessages" parent="@android:style/Theme.Holo.Light">
@@ -70,6 +77,14 @@
         <item name="android:textColor">#000000</item>
     </style>
 
+    <!--ALERT DIALOG-->
+
+    <style name="DialogNoAnimation">
+        <item name="android:windowEnterAnimation">@anim/no_animation</item>
+        <item name="android:windowExitAnimation">@anim/no_animation</item>
+    </style>
+
+
     <style name="myBackgroundStyle" parent="@android:style/Theme.Dialog">
     <item name="android:windowBackground">@android:color/transparent</item>
     <item name="android:windowNoTitle">true</item>
@@ -78,4 +93,6 @@
     <item name="android:windowContentOverlay">@null</item>
     <item name="android:backgroundDimEnabled">false</item>
     </style>
+
+    <color name="transparent_black">#66000000</color>
 </resources>

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.telegram.messenger"
-    android:installLocation="auto">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
+<!--manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="br.com.r4dar"
+    android:installLocation="auto"-->
 
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.location.network" android:required="false" />
@@ -9,21 +10,23 @@
     <uses-feature android:name="android.hardware.LOCATION" android:required="false" />
 
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
-    <uses-permission android:name="org.telegram.plus.permission.MAPS_RECEIVE"/>
-    <uses-permission android:name="org.telegram.plus.permission.C2D_MESSAGE" />
+    <uses-permission android:name="org.telegram.plus.beta.permission.MAPS_RECEIVE"/>
+    <uses-permission android:name="org.telegram.plus.beta.permission.C2D_MESSAGE" />
     <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <permission android:name="org.telegram.plus.permission.MAPS_RECEIVE" android:protectionLevel="signature"/>
-    <permission android:name="org.telegram.plus.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+    <permission android:name="org.telegram.plus.beta.permission.MAPS_RECEIVE" android:protectionLevel="signature"/>
+    <permission android:name="org.telegram.plus.beta.permission.C2D_MESSAGE" android:protectionLevel="signature" />
+	
+	<permission android:name="org.telegram.plus.beta.android.provider.ACCESS" android:protectionLevel="signature"/>
 
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
-        android:label="@string/AppName"
+        android:label="@string/ShortAppName"
         android:theme="@style/Theme.TMessages.Start"
-        android:name=".ApplicationLoader"
+        android:name="org.telegram.messenger.ApplicationLoader"
         android:hardwareAccelerated="@bool/useHardwareAcceleration"
         android:largeHeap="true">
 
@@ -32,7 +35,8 @@
         <activity android:name="net.hockeyapp.android.UpdateActivity" />
 
         <receiver
-            android:name="org.telegram.android.GcmBroadcastReceiver"
+            android:name="com.google.android.gms.gcm.GcmReceiver"
+            android:exported="true"
             android:permission="com.google.android.c2dm.permission.SEND" >
             <intent-filter>
                 <action android:name="com.google.android.c2dm.intent.RECEIVE" />
@@ -40,8 +44,33 @@
                 <category android:name="org.telegram.plus" />
             </intent-filter>
         </receiver>
+        <service
+            android:name="org.telegram.messenger.GcmPushListenerService"
+            android:exported="false" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name="org.telegram.messenger.GcmInstanceIDListenerService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.android.gms.iid.InstanceID" />
+            </intent-filter>
+        </service>
+        <service
+            android:name="org.telegram.messenger.GcmRegistrationIntentService"
+            android:exported="false">
+        </service>
 
         <uses-library android:name="com.google.android.maps" android:required="false"/>
+		
+		<provider
+            android:authorities="org.telegram.plus.beta.android.provider.content"
+            android:name="org.telegram.messenger.ModuleContentProvider"
+            android:label="@string/AppName"
+            android:exported="true"
+            android:permission="org.telegram.plus.android.provider.ACCESS" />
 
     </application>
 
